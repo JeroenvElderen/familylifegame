@@ -189,7 +189,8 @@ export function useGameSimulation() {
         return;
       }
 
-      const eligiblePeople = people.filter((person) => absoluteDay - person.joinedDay >= 30);
+      const currentAbsoluteDay = snapshot.yearsPassed * DAYS_PER_YEAR + snapshot.day;
+      const eligiblePeople = people.filter((person) => currentAbsoluteDay - person.joinedDay >= 30);
       const person = eligiblePeople.length
         ? eligiblePeople[Math.floor(Math.random() * eligiblePeople.length)]
         : snapshot.family.people[snapshot.family.activePersonId];
@@ -239,7 +240,7 @@ export function useGameSimulation() {
       lastEventAtRef.current = Date.now();
     }, 1000);
     return () => clearInterval(id);
-  }, [state.isRunning, absoluteDay]);
+  }, [state.isRunning]);
 
   const applyEffects = (effects, targetPersonId) => {
     if (!effects) return null;
