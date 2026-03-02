@@ -1,6 +1,6 @@
 export const TICK_MS = 1000;
 export const DAY_MS = 100;
-export const EVENT_MS = 20000;
+export const EVENT_MS = 8000;
 export const DAYS_PER_YEAR = 365;
 
 const AVATARS = ['👩', '👨', '🧑‍🦱', '👩‍🦰', '👨‍🦳', '🧔', '👱‍♀️', '👱‍♂️', '🧑‍🦳', '👧', '👦'];
@@ -47,4 +47,11 @@ export function formatMoney(value) {
 
 export function clampNumber(n) {
   return Number.isFinite(n) ? n : 0;
+}
+
+export function formatDate(date) {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
 }

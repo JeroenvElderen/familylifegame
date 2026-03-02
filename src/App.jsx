@@ -8,7 +8,7 @@ export default function App() {
   const {
     moneyDisplay,
     incomePerSecond,
-    day,
+    dateDisplay,
     yearsPassed,
     isRunning,
     setIsRunning,
@@ -48,8 +48,8 @@ export default function App() {
         />
 
         <StatCard
-          label="Time"
-          value={`Day ${day}/365`}
+          label="Date"
+          value={dateDisplay}
           sub={
             <>
               Age: <b>{Math.floor(activePerson.ageDays / 365)}</b> • Years passed: <b>{yearsPassed}</b>

@@ -29,12 +29,7 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
         ) : null}
 
         <div className="treeRow mid">
-          <Avatar
-            person={activePerson}
-            onSelect={onSelectPerson}
-            onActivate={onActivatePerson}
-            isActive
-          />
+          <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive />
           {activePerson.partnerName ? <div className="heart">❤️ {activePerson.partnerName}</div> : null}
         </div>
 
@@ -66,7 +61,9 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
           </div>
           <div className="sub">Traits: {selectedPerson.traits.join(', ')}</div>
         </div>
-      ) : null}
+      ) : (
+        <div className="memberCardHint">Select a person to see their status.</div>
+      )}
     </section>
   );
 }

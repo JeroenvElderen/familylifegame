@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BASE_EVENTS,
   createApplyJobEvent,
+  createBabyEvent,
   createBabyNamingEvent,
+  createGirlfriendEvent,
   createMarriageEvent,
   createPromotionEvent,
 } from '../data/events';
@@ -11,6 +13,7 @@ import {
   DAYS_PER_YEAR,
   DAY_MS,
   EVENT_MS,
+  formatDate,
   formatMoney,
   generatePersonName,
   pickRandomEvent,
@@ -33,6 +36,7 @@ const createPerson = ({ ageYears = 21, parentId = null, name } = {}) => ({
   parentId,
   childrenIds: [],
   partnerName: null,
+  hasPartner: false,
   married: false,
   traits: randomTraits(),
   stats: {
@@ -59,7 +63,7 @@ const initialState = () => {
     yearsPassed: 0,
     family: {
       activePersonId: founder.id,
-      selectedPersonId: founder.id,
+      selectedPersonId: null,
       people: { [founder.id]: founder },
     },
   };
@@ -126,7 +130,12 @@ export function useGameSimulation() {
       if (!person) return;
       const age = Math.floor(person.ageDays / DAYS_PER_YEAR);
 
-      if (!person.married && age >= 21 && state.day > 5) {
+      if (!person.hasPartner && age >= 12 && Math.random() < 0.35) {
+        setCurrentEvent(createGirlfriendEvent(person));
+        return;
+      }
+
+      if (person.hasPartner && !person.married && age >= 18 && Math.random() < 0.3) {
         setCurrentEvent(createMarriageEvent(person));
         return;
       }
@@ -141,16 +150,8 @@ export function useGameSimulation() {
         return;
       }
 
-      if (person.married && age >= 23 && person.childrenIds.length < 3 && Math.random() < 0.4) {
-        setCurrentEvent({
-          id: 'baby_offer',
-          title: 'Family Planning',
-          description: 'You and your partner are considering a child.',
-          options: [
-            { text: 'Yes, let\'s try', effects: { action: 'startBabyNaming' } },
-            { text: 'Not now', effects: { happiness: -1, love: -1 } },
-          ],
-        });
+      if (person.hasPartner && age >= 18 && person.childrenIds.length < 3 && Math.random() < 0.4) {
+        setCurrentEvent(createBabyEvent());
         return;
       }
 
@@ -178,9 +179,20 @@ export function useGameSimulation() {
         },
       };
 
+      if (effects.hasPartner) {
+        updated.hasPartner = true;
+        updated.partnerName = updated.partnerName ?? generatePersonName();
+      }
+
+      if (effects.losePartner) {
+        updated.hasPartner = false;
+        updated.married = false;
+        updated.partnerName = null;
+      }
+
       if (effects.married) {
         updated.married = true;
-        updated.partnerName = generatePersonName();
+        updated.hasPartner = true;
       }
 
       if (effects.action === 'unemployed') {
@@ -281,9 +293,17 @@ export function useGameSimulation() {
     chooseOption,
     reset,
     setIsRunning: (value) => setState((prev) => ({ ...prev, isRunning: value })),
-    selectPerson: (personId) => setState((prev) => ({ ...prev, family: { ...prev.family, selectedPersonId: personId } })),
+    selectPerson: (personId) =>
+      setState((prev) => ({
+        ...prev,
+        family: {
+          ...prev.family,
+          selectedPersonId: prev.family.selectedPersonId === personId ? null : personId,
+        },
+      })),
     setActivePerson: (personId) =>
-      setState((prev) => ({ ...prev, family: { ...prev.family, activePersonId: personId, selectedPersonId: personId } })),
+      setState((prev) => ({ ...prev, family: { ...prev.family, activePersonId: personId } })),
     moneyDisplay: useMemo(() => formatMoney(state.money), [state.money]),
+    dateDisplay: useMemo(() => formatDate(new Date(2026, 0, 1 + (state.yearsPassed * DAYS_PER_YEAR + state.day - 1))), [state.day, state.yearsPassed]),
   };
 }

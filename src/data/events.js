@@ -36,16 +36,45 @@ export const BASE_EVENTS = [
   },
 ];
 
+const JOB_ROLES = [
+  'General Practitioner',
+  'Mental Health Counselor',
+  'Nurse',
+  'Pharmacist Assistant',
+  'Social Worker',
+  'Physical Therapist',
+  'Teacher',
+  'Software Developer',
+  'Accountant',
+  'Electrician',
+  'Paramedic',
+  'Civil Engineer',
+];
+
+export function createGirlfriendEvent(person) {
+  return {
+    id: 'girlfriend_event',
+    title: 'First relationship',
+    description: `${person.name} likes someone and might start dating.`,
+    options: [
+      { text: 'Ask them out', effects: { hasPartner: true, happiness: 6, love: 8, charm: 2 } },
+      { text: 'Take it slow', effects: { love: 3, happiness: 2 } },
+      { text: 'Focus on school/life first', effects: { iq: 2, happiness: -1 } },
+      { text: 'Not interested', effects: { love: -2, happiness: -1 } },
+    ],
+  };
+}
+
 export function createMarriageEvent(person) {
   return {
     id: 'marriage_event',
     title: 'A serious relationship starts',
-    description: `${person.name} met someone special. What should happen next?`,
+    description: `${person.name} and ${person.partnerName ?? 'their partner'} are discussing marriage.`,
     options: [
-      { text: 'Get married soon', effects: { married: true, happiness: 8, love: 8, charm: 2 } },
-      { text: 'Date for a while first', effects: { love: 4, happiness: 4 } },
+      { text: 'Get married soon', effects: { married: true, hasPartner: true, happiness: 8, love: 8, charm: 2 } },
+      { text: 'Wait a little longer', effects: { love: 3, happiness: 2 } },
       { text: 'Stay focused on work', effects: { iq: 1, happiness: -2, love: -2 } },
-      { text: 'Not interested right now', effects: { happiness: -1, love: -3 } },
+      { text: 'Break up', effects: { hasPartner: false, losePartner: true, happiness: -4, love: -6 } },
     ],
   };
 }
@@ -68,16 +97,7 @@ export function createPromotionEvent(currentLevel) {
 }
 
 export function createApplyJobEvent() {
-  const jobs = [
-    'Retail Associate',
-    'Office Assistant',
-    'Warehouse Operator',
-    'Support Agent',
-    'Junior Designer',
-    'Barista',
-  ]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 4);
+  const jobs = [...JOB_ROLES].sort(() => Math.random() - 0.5).slice(0, 4);
 
   return {
     id: 'job_apply_event',
@@ -88,12 +108,24 @@ export function createApplyJobEvent() {
         text: `Apply: ${job}`,
         effects: {
           jobTitle: job,
-          salaryPerSecond: 120 + Math.floor(Math.random() * 96),
+          salaryPerSecond: 120 + Math.floor(Math.random() * 156),
           happiness: 2,
           love: 1,
         },
       })),
       { text: 'Refresh offers', effects: { action: 'refreshJobs', iq: 1 } },
+    ],
+  };
+}
+
+export function createBabyEvent() {
+  return {
+    id: 'baby_offer',
+    title: 'Family Planning',
+    description: 'You and your partner are considering a child.',
+    options: [
+      { text: "Yes, let's try", effects: { action: 'startBabyNaming' } },
+      { text: 'Not now', effects: { happiness: -1, love: -1 } },
     ],
   };
 }
