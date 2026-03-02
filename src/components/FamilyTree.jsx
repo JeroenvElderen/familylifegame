@@ -1,20 +1,29 @@
-function Avatar({ person, onSelect, onActivate, isActive }) {
+function Avatar({ person, onSelect, onActivate, isActive, popup }) {
   if (!person) return null;
+  const net = person.job.salaryPerSecond - person.childCostPerSecond;
   return (
     <div className={`avatarNode ${isActive ? 'active' : ''}`}>
-      <button className="avatarBubble clickable" onClick={() => onSelect(person.id)}>
+      <button
+        className="avatarBubble clickable"
+        onClick={() => {
+          onSelect(person.id);
+          onActivate(person.id);
+        }}
+      >
         {person.avatar}
       </button>
+      {popup ? <div className={`cashPopup ${popup.type}`}>{popup.text}</div> : null}
       <div className="avatarLabel">{person.name}</div>
       <div className="avatarMeta">Age {Math.floor(person.ageDays / 365)}</div>
+      <div className={`avatarIncome ${net >= 0 ? 'gain' : 'cost'}`}>{net >= 0 ? '+' : ''}{net}/s</div>
       <button className="btn tiny" onClick={() => onActivate(person.id)}>
-        Play this family line
+        Open family line
       </button>
     </div>
   );
 }
 
-export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson, onActivatePerson }) {
+export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson, onActivatePerson, cashPopups }) {
   const children = activePerson.childrenIds.map((id) => family.people[id]).filter(Boolean);
   const parent = activePerson.parentId ? family.people[activePerson.parentId] : null;
 
@@ -24,13 +33,18 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
       <div className="treeWrap">
         {parent ? (
           <div className="treeRow top">
-            <Avatar person={parent} onSelect={onSelectPerson} onActivate={onActivatePerson} />
+            <Avatar person={parent} onSelect={onSelectPerson} onActivate={onActivatePerson} popup={cashPopups[parent.id]} />
           </div>
         ) : null}
 
         <div className="treeRow mid">
-          <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive />
-          {activePerson.partnerName ? <div className="heart">❤️ {activePerson.partnerName}</div> : null}
+          <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive popup={cashPopups[activePerson.id]} />
+          {activePerson.partnerName ? (
+            <div className="partnerNode">
+              <div className="avatarBubble partner">{activePerson.partnerAvatar ?? '🙂'}</div>
+              <div className="avatarLabel">{activePerson.partnerName}</div>
+            </div>
+          ) : null}
         </div>
 
         <div className="treeConnector" />
@@ -38,7 +52,7 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
         <div className="treeRow bottom">
           {children.length ? (
             children.map((child) => (
-              <Avatar key={child.id} person={child} onSelect={onSelectPerson} onActivate={onActivatePerson} />
+              <Avatar key={child.id} person={child} onSelect={onSelectPerson} onActivate={onActivatePerson} popup={cashPopups[child.id]} />
             ))
           ) : (
             <div className="emptyChild">No children yet</div>

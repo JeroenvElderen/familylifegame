@@ -1,6 +1,6 @@
 export const TICK_MS = 1000;
-export const DAY_MS = 100;
-export const EVENT_MS = 8000;
+export const DAY_MS = 60;
+export const EVENT_MS = 12000;
 export const DAYS_PER_YEAR = 365;
 
 const AVATARS = ['👩', '👨', '🧑‍🦱', '👩‍🦰', '👨‍🦳', '🧔', '👱‍♀️', '👱‍♂️', '🧑‍🦳', '👧', '👦'];

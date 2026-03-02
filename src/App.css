@@ -25,17 +25,21 @@ body {
 .btn.tiny { padding: 5px 8px; font-size: 11px; }
 
 .treeWrap { text-align: center; }
-.treeRow { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.treeRow { display: flex; align-items: flex-start; justify-content: center; gap: 18px; flex-wrap: wrap; }
 .treeRow.top { opacity: 0.85; margin-top: 8px; }
-.treeRow.mid { margin-top: 12px; }
+.treeRow.mid { margin-top: 12px; align-items: center; }
 .treeRow.bottom { margin-top: 12px; }
-.avatarNode { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.avatarNode { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; min-width: 100px; }
 .avatarNode.active .avatarBubble { box-shadow: 0 0 0 2px #84c1ff; }
 .avatarBubble { width: 58px; height: 58px; border-radius: 999px; background: linear-gradient(135deg, #ff74d4, #55b1ff); display: grid; place-items: center; font-size: 28px; border: 3px solid rgba(255, 255, 255, 0.65); }
+.avatarBubble.partner { margin: 0 auto; }
 .avatarBubble.clickable { cursor: pointer; }
 .avatarLabel { font-size: 12px; opacity: 0.9; }
 .avatarMeta { font-size: 11px; opacity: 0.75; }
-.heart { font-size: 18px; opacity: 0.9; }
+.avatarIncome { font-size: 12px; font-weight: 600; }
+.avatarIncome.gain { color: #63e48d; }
+.avatarIncome.cost { color: #ff7f7f; }
+.partnerNode { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .treeConnector { width: 2px; height: 24px; background: #6db7ff; margin: 8px auto 0; }
 .emptyChild { opacity: 0.7; font-size: 14px; }
 .memberCard { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.15); }
@@ -43,12 +47,42 @@ body {
 .memberTitle { font-weight: 700; }
 .memberGrid { margin-top: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-size: 13px; }
 
-.modalOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.66); display: grid; place-items: center; padding: 18px; }
+.cashPopup {
+  position: absolute;
+  top: -8px;
+  right: -30px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(10, 10, 20, 0.85);
+  animation: floatFade 0.9s ease forwards;
+  pointer-events: none;
+}
+.cashPopup.gain { color: #7bf5a0; border: 1px solid rgba(123, 245, 160, 0.45); }
+.cashPopup.cost { color: #ff9f9f; border: 1px solid rgba(255, 159, 159, 0.45); }
+
+@keyframes floatFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(-8px); }
+}
+
+.modalOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.66); display: grid; place-items: center; padding: 18px; gap: 12px; }
 .modal { width: min(560px, 100%); background: #1d1d2b; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 18px; padding: 16px; }
+.modalTarget { font-size: 12px; opacity: 0.75; margin-bottom: 4px; }
 .modalTitle { font-size: 20px; font-weight: 800; }
 .modalBody { margin-top: 10px; opacity: 0.9; }
 .choices { margin-top: 14px; display: grid; gap: 10px; }
 .btn.choice { text-align: left; }
+.resultModal { border-color: rgba(122, 239, 159, 0.5); }
+.effectList { margin: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.effectItem { font-size: 12px; border: 1px solid rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 999px; }
+.statusRow { margin: 10px 0; }
+.statusHeader { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+.statusTrack { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.15); overflow: hidden; }
+.statusFill { height: 100%; }
+.statusFill.bad { background: #ff5959; }
+.statusFill.warn { background: #ffb347; }
+.statusFill.good { background: #63e48d; }
 
 @media (max-width: 760px) {
   .grid { grid-template-columns: 1fr; }

@@ -67,6 +67,36 @@ export const BASE_EVENTS = [
       { text: 'Skip and focus on routine', effects: { money: 20, iq: -1 } },
     ],
   },
+  {
+    id: 'ev_neighbor_help',
+    title: 'Neighbor asks for help',
+    description: 'A neighbor needs help moving furniture this evening.',
+    options: [
+      { text: 'Help out', effects: { happiness: 3, charm: 3, money: 15 } },
+      { text: 'Offer a small tip instead', effects: { money: -20, love: 1 } },
+      { text: 'Decline politely', effects: { happiness: -1, charm: -1, iq: 1 } },
+    ],
+  },
+  {
+    id: 'ev_lottery',
+    title: 'Local raffle',
+    description: 'A cheap raffle ticket might pay off.',
+    options: [
+      { text: 'Buy one ticket', effects: { money: 30, happiness: 2 } },
+      { text: 'Buy five tickets', effects: { money: -35, happiness: 1 } },
+      { text: 'Skip it', effects: { iq: 1 } },
+    ],
+  },
+  {
+    id: 'ev_hobby',
+    title: 'New hobby trend',
+    description: 'Friends invite you to try a creative hobby club.',
+    options: [
+      { text: 'Join and commit', effects: { money: -45, happiness: 4, charm: 2 } },
+      { text: 'Try a trial session', effects: { money: -15, happiness: 2 } },
+      { text: 'No time right now', effects: { happiness: -1, iq: 1 } },
+    ],
+  },
 ];
 
 const JOB_ROLES = [
@@ -82,6 +112,16 @@ const JOB_ROLES = [
   'Electrician',
   'Paramedic',
   'Civil Engineer',
+  'UX Designer',
+  'Data Analyst',
+  'Cybersecurity Specialist',
+  'Chef',
+  'Architect',
+  'Product Manager',
+  'Sales Lead',
+  'Flight Dispatcher',
+  'Biology Lab Technician',
+  'Veterinary Assistant',
 ];
 
 export function createGirlfriendEvent(person) {
@@ -159,6 +199,32 @@ export function createBabyEvent() {
     options: [
       { text: "Yes, let's try", effects: { action: 'startBabyNaming' } },
       { text: 'Not now', effects: { happiness: -1, love: -1 } },
+    ],
+  };
+}
+
+export function createAIBabyProposalEvent(person) {
+  return {
+    id: 'ai_baby_proposal',
+    title: `${person.name} wants to try for a baby`,
+    description: `${person.name} and ${person.partnerName ?? 'their partner'} feel ready to grow the family. What do you want to do?`,
+    options: [
+      { text: 'Support the plan', effects: { action: 'startBabyNaming', happiness: 2, love: 3 } },
+      { text: 'Wait and prepare finances', effects: { iq: 2, love: -1, money: 40 } },
+      { text: 'Decline for now', effects: { happiness: -2, love: -3 } },
+    ],
+  };
+}
+
+export function createAICareerFocusEvent(person) {
+  return {
+    id: 'ai_career_focus',
+    title: `${person.name} wants a career pivot`,
+    description: `${person.name} is feeling ambitious and asks for your guidance on the next step.`,
+    options: [
+      { text: 'Push for training', effects: { iq: 3, happiness: 2, money: -50 } },
+      { text: 'Apply for leadership tasks', effects: { promote: true, charm: 2, happiness: -1 } },
+      { text: 'Keep current pace', effects: { happiness: 1 } },
     ],
   };
 }

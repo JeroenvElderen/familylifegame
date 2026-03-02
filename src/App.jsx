@@ -15,6 +15,9 @@ export default function App() {
     reset,
     currentEvent,
     chooseOption,
+    eventResult,
+    dismissEventResult,
+    cashPopups,
     family,
     activePerson,
     selectedPerson,
@@ -63,10 +66,11 @@ export default function App() {
           selectedPerson={selectedPerson}
           onSelectPerson={selectPerson}
           onActivatePerson={setActivePerson}
+          cashPopups={cashPopups}
         />
       </main>
 
-      <EventModal event={currentEvent} onChoose={chooseOption} />
+      <EventModal event={currentEvent} onChoose={chooseOption} result={eventResult} onCloseResult={dismissEventResult} />
     </div>
   );
 }

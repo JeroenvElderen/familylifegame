@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BASE_EVENTS,
+  createAIBabyProposalEvent,
+  createAICareerFocusEvent,
   createApplyJobEvent,
-  createBabyEvent,
   createBabyNamingEvent,
   createGirlfriendEvent,
   createMarriageEvent,
@@ -28,14 +29,18 @@ const randomTraits = () => {
   return [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
 };
 
-const createPerson = ({ ageYears = 21, parentId = null, name } = {}) => ({
+const withTarget = (event, person) => ({ ...event, targetPersonId: person.id, targetPersonName: person.name });
+
+const createPerson = ({ ageYears = 21, parentId = null, name, joinedDay = 1 } = {}) => ({
   id: `p_${personIdCounter++}`,
   name: name ?? generatePersonName(),
   avatar: randomAvatar(),
   ageDays: ageYears * DAYS_PER_YEAR,
+  joinedDay,
   parentId,
   childrenIds: [],
   partnerName: null,
+  partnerAvatar: null,
   hasPartner: false,
   married: false,
   traits: randomTraits(),
@@ -55,7 +60,7 @@ const createPerson = ({ ageYears = 21, parentId = null, name } = {}) => ({
 });
 
 const initialState = () => {
-  const founder = createPerson({ ageYears: 21 });
+  const founder = createPerson({ ageYears: 21, joinedDay: 1 });
   return {
     money: 1000,
     isRunning: false,
@@ -69,15 +74,31 @@ const initialState = () => {
   };
 };
 
+const summarizeEffects = (effects) => {
+  if (!effects) return [];
+  const labels = { money: 'Money', happiness: 'Happiness', love: 'Love', charm: 'Charm', iq: 'IQ' };
+  return Object.entries(labels)
+    .map(([key, label]) => {
+      const value = effects[key];
+      if (!value) return null;
+      const sign = value > 0 ? '+' : '';
+      return `${label} ${sign}${value}`;
+    })
+    .filter(Boolean);
+};
+
 export function useGameSimulation() {
   const [state, setState] = useState(initialState);
   const [currentEvent, setCurrentEvent] = useState(null);
   const [pendingEvent, setPendingEvent] = useState(null);
+  const [eventResult, setEventResult] = useState(null);
   const [pendingBabyParentId, setPendingBabyParentId] = useState(null);
+  const [cashPopups, setCashPopups] = useState({});
   const lastEventIdRef = useRef(null);
   const latestStateRef = useRef(state);
   const currentEventRef = useRef(currentEvent);
   const pendingEventRef = useRef(pendingEvent);
+  const lastEventAtRef = useRef(0);
 
   useEffect(() => {
     latestStateRef.current = state;
@@ -91,6 +112,7 @@ export function useGameSimulation() {
     pendingEventRef.current = pendingEvent;
   }, [pendingEvent]);
 
+  const absoluteDay = state.yearsPassed * DAYS_PER_YEAR + state.day;
   const activePerson = state.family.people[state.family.activePersonId];
   const selectedPerson = state.family.people[state.family.selectedPersonId];
   const incomePerSecond = (activePerson?.job.salaryPerSecond ?? 0) - (activePerson?.childCostPerSecond ?? 0);
@@ -104,6 +126,19 @@ export function useGameSimulation() {
         const netIncome = person.job.salaryPerSecond - person.childCostPerSecond;
         return { ...prev, money: clampNumber(prev.money + netIncome) };
       });
+
+      const people = latestStateRef.current.family.people;
+      const nextPopups = {};
+      Object.values(people).forEach((person) => {
+        const net = person.job.salaryPerSecond - person.childCostPerSecond;
+        if (!net) return;
+        nextPopups[person.id] = {
+          id: `${person.id}_${Date.now()}`,
+          text: `${net > 0 ? '+' : ''}${net}/s`,
+          type: net > 0 ? 'gain' : 'cost',
+        };
+      });
+      setCashPopups(nextPopups);
     }, TICK_MS);
     return () => clearInterval(id);
   }, [state.isRunning]);
@@ -142,54 +177,76 @@ export function useGameSimulation() {
     const id = setInterval(() => {
       if (currentEventRef.current) return;
 
+      const snapshot = latestStateRef.current;
+      const people = Object.values(snapshot.family.people);
+      const minGap = EVENT_MS + people.length * 1500;
+      if (Date.now() - lastEventAtRef.current < minGap) return;
+
       if (pendingEventRef.current) {
         setCurrentEvent(pendingEventRef.current);
         setPendingEvent(null);
+        lastEventAtRef.current = Date.now();
         return;
       }
 
-      const snapshot = latestStateRef.current;
-      const person = snapshot.family.people[snapshot.family.activePersonId];
+      const eligiblePeople = people.filter((person) => absoluteDay - person.joinedDay >= 30);
+      const person = eligiblePeople.length
+        ? eligiblePeople[Math.floor(Math.random() * eligiblePeople.length)]
+        : snapshot.family.people[snapshot.family.activePersonId];
       if (!person) return;
       const age = Math.floor(person.ageDays / DAYS_PER_YEAR);
 
-      if (!person.hasPartner && age >= 12 && Math.random() < 0.35) {
-        setCurrentEvent(createGirlfriendEvent(person));
+      if (!person.hasPartner && age >= 12 && Math.random() < 0.25) {
+        setCurrentEvent(withTarget(createGirlfriendEvent(person), person));
+        lastEventAtRef.current = Date.now();
         return;
       }
 
-      if (person.hasPartner && !person.married && age >= 18 && Math.random() < 0.3) {
-        setCurrentEvent(createMarriageEvent(person));
+      if (person.hasPartner && !person.married && age >= 18 && Math.random() < 0.2) {
+        setCurrentEvent(withTarget(createMarriageEvent(person), person));
+        lastEventAtRef.current = Date.now();
         return;
       }
 
       if (!person.job.employed) {
-        setCurrentEvent(createApplyJobEvent());
+        setCurrentEvent(withTarget(createApplyJobEvent(), person));
+        lastEventAtRef.current = Date.now();
         return;
       }
 
-      if (Math.random() < 0.35) {
-        setCurrentEvent(createPromotionEvent(person.job.level));
+      if (Math.random() < 0.2) {
+        setCurrentEvent(withTarget(createPromotionEvent(person.job.level), person));
+        lastEventAtRef.current = Date.now();
         return;
       }
 
-      if (person.hasPartner && age >= 18 && person.childrenIds.length < 3 && Math.random() < 0.4) {
-        setCurrentEvent(createBabyEvent());
+      if (person.hasPartner && age >= 19 && person.stats.happiness > 45 && person.stats.love > 42 && Math.random() < 0.25) {
+        setCurrentEvent(withTarget(createAIBabyProposalEvent(person), person));
+        lastEventAtRef.current = Date.now();
+        return;
+      }
+
+      if (Math.random() < 0.2) {
+        setCurrentEvent(withTarget(createAICareerFocusEvent(person), person));
+        lastEventAtRef.current = Date.now();
         return;
       }
 
       const ev = pickRandomEvent(BASE_EVENTS, lastEventIdRef.current);
       if (!ev) return;
       lastEventIdRef.current = ev.id;
-      setCurrentEvent(ev);
-    }, EVENT_MS);
+      setCurrentEvent(withTarget(ev, person));
+      lastEventAtRef.current = Date.now();
+    }, 1000);
     return () => clearInterval(id);
-  }, [state.isRunning]);
+  }, [state.isRunning, absoluteDay]);
 
-  const applyEffects = (effects) => {
-    if (!effects) return;
+  const applyEffects = (effects, targetPersonId) => {
+    if (!effects) return null;
+    let nextPerson = null;
     setState((prev) => {
-      const person = prev.family.people[prev.family.activePersonId];
+      const personId = targetPersonId ?? prev.family.activePersonId;
+      const person = prev.family.people[personId];
       if (!person) return prev;
 
       const updated = {
@@ -205,17 +262,20 @@ export function useGameSimulation() {
       if (effects.hasPartner) {
         updated.hasPartner = true;
         updated.partnerName = updated.partnerName ?? generatePersonName();
+        updated.partnerAvatar = updated.partnerAvatar ?? randomAvatar();
       }
 
       if (effects.losePartner) {
         updated.hasPartner = false;
         updated.married = false;
         updated.partnerName = null;
+        updated.partnerAvatar = null;
       }
 
       if (effects.married) {
         updated.married = true;
         updated.hasPartner = true;
+        updated.partnerAvatar = updated.partnerAvatar ?? randomAvatar();
       }
 
       if (effects.action === 'unemployed') {
@@ -239,6 +299,7 @@ export function useGameSimulation() {
         };
       }
 
+      nextPerson = updated;
       return {
         ...prev,
         money: clampNumber(prev.money + (effects.money ?? 0)),
@@ -253,7 +314,7 @@ export function useGameSimulation() {
     });
 
     if (effects.action === 'startBabyNaming') {
-      setPendingBabyParentId(state.family.activePersonId);
+      setPendingBabyParentId(targetPersonId ?? state.family.activePersonId);
       setPendingEvent(createBabyNamingEvent());
     }
 
@@ -265,7 +326,7 @@ export function useGameSimulation() {
       setState((prev) => {
         const parent = prev.family.people[pendingBabyParentId];
         if (!parent) return prev;
-        const newBaby = createPerson({ ageYears: 0, parentId: parent.id, name: effects.babyName });
+        const newBaby = createPerson({ ageYears: 0, parentId: parent.id, name: effects.babyName, joinedDay: absoluteDay });
         newBaby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0 };
         newBaby.childCostPerSecond = 60;
 
@@ -289,12 +350,22 @@ export function useGameSimulation() {
       });
       setPendingBabyParentId(null);
     }
+
+    return nextPerson;
   };
 
   const chooseOption = (idx) => {
     const option = currentEvent?.options?.[idx];
     if (!option) return;
-    applyEffects(option.effects);
+    const targetPersonId = currentEvent?.targetPersonId ?? state.family.activePersonId;
+    const targetPerson = state.family.people[targetPersonId];
+    const updatedPerson = applyEffects(option.effects, targetPersonId) ?? targetPerson;
+    setEventResult({
+      personName: targetPerson?.name,
+      summary: summarizeEffects(option.effects),
+      stats: updatedPerson?.stats ?? targetPerson?.stats,
+      option: option.text,
+    });
     setCurrentEvent(null);
   };
 
@@ -304,7 +375,10 @@ export function useGameSimulation() {
     setCurrentEvent(null);
     setPendingEvent(null);
     setPendingBabyParentId(null);
+    setEventResult(null);
+    setCashPopups({});
     lastEventIdRef.current = null;
+    lastEventAtRef.current = 0;
   };
 
   return {
@@ -313,7 +387,10 @@ export function useGameSimulation() {
     selectedPerson,
     incomePerSecond,
     currentEvent,
+    eventResult,
+    cashPopups,
     chooseOption,
+    dismissEventResult: () => setEventResult(null),
     reset,
     setIsRunning: (value) => setState((prev) => ({ ...prev, isRunning: value })),
     selectPerson: (personId) =>
@@ -325,7 +402,7 @@ export function useGameSimulation() {
         },
       })),
     setActivePerson: (personId) =>
-      setState((prev) => ({ ...prev, family: { ...prev.family, activePersonId: personId } })),
+      setState((prev) => ({ ...prev, family: { ...prev.family, activePersonId: personId, selectedPersonId: personId } })),
     moneyDisplay: useMemo(() => formatMoney(state.money), [state.money]),
     dateDisplay: useMemo(() => formatDate(new Date(2026, 0, 1 + (state.yearsPassed * DAYS_PER_YEAR + state.day - 1))), [state.day, state.yearsPassed]),
   };
