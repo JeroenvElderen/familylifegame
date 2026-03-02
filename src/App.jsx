@@ -8,14 +8,18 @@ export default function App() {
   const {
     moneyDisplay,
     incomePerSecond,
-    time,
+    day,
+    yearsPassed,
     isRunning,
     setIsRunning,
     reset,
     currentEvent,
     chooseOption,
-    relationship,
     family,
+    activePerson,
+    selectedPerson,
+    selectPerson,
+    setActivePerson,
   } = useGameSimulation();
 
   return (
@@ -38,22 +42,28 @@ export default function App() {
           value={moneyDisplay}
           sub={
             <>
-              Income/sec: <b>{incomePerSecond.toFixed(2)}</b>
+              Net/sec: <b>{incomePerSecond.toFixed(2)}</b>
             </>
           }
         />
 
         <StatCard
           label="Time"
-          value={`Day ${time.dayOfYear}/365`}
+          value={`Day ${day}/365`}
           sub={
             <>
-              Age: <b>{time.age}</b> • Years passed: <b>{time.yearsPassed}</b>
+              Age: <b>{Math.floor(activePerson.ageDays / 365)}</b> • Years passed: <b>{yearsPassed}</b>
             </>
           }
         />
 
-        <FamilyTree family={family} relationship={relationship} />
+        <FamilyTree
+          family={family}
+          activePerson={activePerson}
+          selectedPerson={selectedPerson}
+          onSelectPerson={selectPerson}
+          onActivatePerson={setActivePerson}
+        />
       </main>
 
       <EventModal event={currentEvent} onChoose={chooseOption} />

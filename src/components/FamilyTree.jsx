@@ -1,45 +1,72 @@
-function Avatar({ icon, label }) {
+function Avatar({ person, onSelect, onActivate, isActive }) {
+  if (!person) return null;
   return (
-    <div className="avatarNode">
-      <div className="avatarBubble">{icon}</div>
-      <div className="avatarLabel">{label}</div>
+    <div className={`avatarNode ${isActive ? 'active' : ''}`}>
+      <button className="avatarBubble clickable" onClick={() => onSelect(person.id)}>
+        {person.avatar}
+      </button>
+      <div className="avatarLabel">{person.name}</div>
+      <div className="avatarMeta">Age {Math.floor(person.ageDays / 365)}</div>
+      <button className="btn tiny" onClick={() => onActivate(person.id)}>
+        Play this family line
+      </button>
     </div>
   );
 }
 
-export function FamilyTree({ family, relationship }) {
-  const { parentA, parentB, child } = family;
+export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson, onActivatePerson }) {
+  const children = activePerson.childrenIds.map((id) => family.people[id]).filter(Boolean);
+  const parent = activePerson.parentId ? family.people[activePerson.parentId] : null;
 
   return (
     <section className="card wide">
       <div className="label">Family Tree</div>
       <div className="treeWrap">
-        <div className="treeRow top">
-          <Avatar icon="👵" label="Grandma" />
-          <Avatar icon="👴" label="Grandpa" />
-          <Avatar icon="👵" label="Grandma" />
-          <Avatar icon="👴" label="Grandpa" />
-        </div>
-
-        <div className="treeLines">└── Parents & Child Lineage ──┘</div>
+        {parent ? (
+          <div className="treeRow top">
+            <Avatar person={parent} onSelect={onSelectPerson} onActivate={onActivatePerson} />
+          </div>
+        ) : null}
 
         <div className="treeRow mid">
-          <Avatar icon={parentA.avatar} label="Parent A" />
-          <div className="heart">❤️</div>
-          <Avatar icon={parentB.avatar} label="Parent B" />
+          <Avatar
+            person={activePerson}
+            onSelect={onSelectPerson}
+            onActivate={onActivatePerson}
+            isActive
+          />
+          {activePerson.partnerName ? <div className="heart">❤️ {activePerson.partnerName}</div> : null}
         </div>
 
         <div className="treeConnector" />
 
         <div className="treeRow bottom">
-          {child ? (
-            <Avatar icon={child.avatar} label={`Child (${child.age}y)`} />
+          {children.length ? (
+            children.map((child) => (
+              <Avatar key={child.id} person={child} onSelect={onSelectPerson} onActivate={onActivatePerson} />
+            ))
           ) : (
-            <div className="emptyChild">No child yet</div>
+            <div className="emptyChild">No children yet</div>
           )}
         </div>
       </div>
-      <div className="sub">Happiness: {relationship.happiness} • Love: {relationship.love}</div>
+      
+      {selectedPerson ? (
+        <div className="memberCard">
+          <div className="memberTitle">
+            {selectedPerson.avatar} {selectedPerson.name}
+          </div>
+          <div className="memberGrid">
+            <span>Happiness: {selectedPerson.stats.happiness}</span>
+            <span>Love: {selectedPerson.stats.love}</span>
+            <span>Charm: {selectedPerson.stats.charm}</span>
+            <span>IQ: {selectedPerson.stats.iq}</span>
+            <span>Job: {selectedPerson.job.title}</span>
+            <span>Salary/s: {selectedPerson.job.salaryPerSecond}</span>
+          </div>
+          <div className="sub">Traits: {selectedPerson.traits.join(', ')}</div>
+        </div>
+      ) : null}
     </section>
   );
 }

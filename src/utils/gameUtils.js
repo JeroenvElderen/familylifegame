@@ -1,11 +1,31 @@
 export const TICK_MS = 1000;
-export const DAY_MS = 30000;
-export const EVENT_MS = 30000;
-export const LOVE_TICK_MS = 60000;
+export const DAY_MS = 100;
+export const EVENT_MS = 20000;
 export const DAYS_PER_YEAR = 365;
 
 const AVATARS = ['👩', '👨', '🧑‍🦱', '👩‍🦰', '👨‍🦳', '🧔', '👱‍♀️', '👱‍♂️', '🧑‍🦳', '👧', '👦'];
+const FIRST_NAMES = [
+  'Liam',
+  'Noah',
+  'Emma',
+  'Olivia',
+  'Ava',
+  'Sophia',
+  'Mason',
+  'Ethan',
+  'Lucas',
+  'Mila',
+  'Ella',
+  'Aria',
+  'Leo',
+  'Nora',
+  'Ivy',
+  'Ezra',
+];
 
+export function generatePersonName() {
+  return FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];
+}
 export function randomAvatar() {
   return AVATARS[Math.floor(Math.random() * AVATARS.length)];
 }
@@ -15,9 +35,7 @@ export function pickRandomEvent(events, avoidId) {
   if (events.length === 1) return events[0];
 
   let ev = events[Math.floor(Math.random() * events.length)];
-  if (avoidId && ev.id === avoidId) {
-    ev = events[Math.floor(Math.random() * events.length)];
-  }
+  if (avoidId && ev.id === avoidId) ev = events[Math.floor(Math.random() * events.length)];
   return ev;
 }
 

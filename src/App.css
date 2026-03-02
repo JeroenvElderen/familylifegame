@@ -9,101 +9,41 @@ body {
   color: #f6f7fb;
 }
 
-.app {
-  min-height: 100vh;
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.25);
-  position: sticky;
-  top: 0;
-  backdrop-filter: blur(8px);
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 18px;
-}
-
-.card {
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 16px;
-  padding: 16px;
-}
-
-.card.wide {
-  grid-column: 1 / -1;
-}
+.app { min-height: 100vh; }
+.topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(0, 0, 0, 0.25); position: sticky; top: 0; backdrop-filter: blur(8px); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 18px; }
+.card { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.11); border-radius: 16px; padding: 16px; }
+.card.wide { grid-column: 1 / -1; }
 
 .label { opacity: 0.8; font-size: 13px; }
 .value { font-size: 28px; margin-top: 8px; font-weight: 700; }
 .sub { margin-top: 10px; opacity: 0.85; font-size: 14px; }
-
 .brand { font-weight: 700; }
 .controls { display: flex; gap: 10px; }
-
-.btn {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-}
-
+.btn { border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.08); color: #fff; padding: 10px 12px; border-radius: 12px; cursor: pointer; }
 .btn.primary { background: rgba(93, 104, 255, 0.5); }
+.btn.tiny { padding: 5px 8px; font-size: 11px; }
 
 .treeWrap { text-align: center; }
-.treeRow { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.treeRow { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
 .treeRow.top { opacity: 0.85; margin-top: 8px; }
 .treeRow.mid { margin-top: 12px; }
 .treeRow.bottom { margin-top: 12px; }
-.treeLines { opacity: 0.55; margin-top: 10px; }
-
 .avatarNode { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.avatarBubble {
-  width: 58px;
-  height: 58px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ff74d4, #55b1ff);
-  display: grid;
-  place-items: center;
-  font-size: 28px;
-  border: 3px solid rgba(255, 255, 255, 0.65);
-}
-.avatarLabel { font-size: 12px; opacity: 0.85; }
-.heart { font-size: 24px; }
-.treeConnector {
-  width: 2px;
-  height: 30px;
-  background: #6db7ff;
-  margin: 6px auto 0;
-}
+.avatarNode.active .avatarBubble { box-shadow: 0 0 0 2px #84c1ff; }
+.avatarBubble { width: 58px; height: 58px; border-radius: 999px; background: linear-gradient(135deg, #ff74d4, #55b1ff); display: grid; place-items: center; font-size: 28px; border: 3px solid rgba(255, 255, 255, 0.65); }
+.avatarBubble.clickable { cursor: pointer; }
+.avatarLabel { font-size: 12px; opacity: 0.9; }
+.avatarMeta { font-size: 11px; opacity: 0.75; }
+.heart { font-size: 18px; opacity: 0.9; }
+.treeConnector { width: 2px; height: 24px; background: #6db7ff; margin: 8px auto 0; }
 .emptyChild { opacity: 0.7; font-size: 14px; }
+.memberCard { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.15); }
+.memberTitle { font-weight: 700; }
+.memberGrid { margin-top: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-size: 13px; }
 
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.66);
-  display: grid;
-  place-items: center;
-  padding: 18px;
-}
-.modal {
-  width: min(560px, 100%);
-  background: #1d1d2b;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 18px;
-  padding: 16px;
-}
+.modalOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.66); display: grid; place-items: center; padding: 18px; }
+.modal { width: min(560px, 100%); background: #1d1d2b; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 18px; padding: 16px; }
 .modalTitle { font-size: 20px; font-weight: 800; }
 .modalBody { margin-top: 10px; opacity: 0.9; }
 .choices { margin-top: 14px; display: grid; gap: 10px; }
@@ -111,4 +51,5 @@ body {
 
 @media (max-width: 760px) {
   .grid { grid-template-columns: 1fr; }
+  .memberGrid { grid-template-columns: 1fr; }
 }

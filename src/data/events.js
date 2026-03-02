@@ -1,13 +1,15 @@
+import { generatePersonName } from '../utils/gameUtils';
+
 export const BASE_EVENTS = [
   {
     id: 'ev_fee',
     title: 'Unexpected fee',
     description: 'A small admin fee hits your account.',
     options: [
-      { text: 'Pay immediately', effects: { money: -20 } },
-      { text: 'Dispute it (time cost)', effects: { money: -5 } },
-      { text: 'Ignore it (it grows)', effects: { money: -40 } },
-      { text: 'Ask for a waiver', effects: { money: -10 } },
+      { text: 'Pay immediately', effects: { money: -20, happiness: -1, charm: -1 } },
+      { text: 'Dispute it (time cost)', effects: { money: -5, iq: 1, happiness: -1 } },
+      { text: 'Ignore it (it grows)', effects: { money: -40, happiness: -2, love: -1 } },
+      { text: 'Ask for a waiver', effects: { money: -10, charm: 2, happiness: 1 } },
     ],
   },
   {
@@ -15,110 +17,97 @@ export const BASE_EVENTS = [
     title: 'Side gig offer',
     description: "A short side gig appears. It's not glamorous, but it pays.",
     options: [
-      { text: 'Take it', effects: { money: 50, incomePerSecond: 0.2, happiness: -1 } },
-      { text: 'Decline', effects: { happiness: 1 } },
-      { text: 'Negotiate higher pay', effects: { money: 70, incomePerSecond: -0.1 } },
-      { text: 'Delay decision', effects: { money: -5 } },
+      { text: 'Take it', effects: { money: 50, happiness: -1, iq: 1 } },
+      { text: 'Decline', effects: { happiness: 2, love: 1 } },
+      { text: 'Negotiate higher pay', effects: { money: 80, charm: 2, happiness: -1 } },
+      { text: 'Delay decision', effects: { money: -5, happiness: -1 } },
     ],
   },
   {
-    id: 'ev_subscription',
-    title: 'Subscription creep',
-    description: 'You notice recurring subscriptions you barely use.',
+    id: 'ev_health',
+    title: 'Health check reminder',
+    description: 'You have enough time to prioritize your health this week.',
     options: [
-      { text: 'Cancel a few', effects: { incomePerSecond: 0.15 } },
-      { text: 'Keep them', effects: {} },
-      { text: 'Downgrade to cheaper plans', effects: { incomePerSecond: 0.08 } },
-      { text: 'Ignore it', effects: { incomePerSecond: -0.05 } },
-    ],
-  },
-  {
-    id: 'ev_impulse_buy',
-    title: 'Impulse buy',
-    description: 'Something tempting is on sale. You feel that pull.',
-    options: [
-      { text: 'Buy it', effects: { money: -60, happiness: 2 } },
-      { text: 'Wait 24 hours', effects: { happiness: 1 } },
-      { text: 'Buy second-hand instead', effects: { money: -25, happiness: 1 } },
-      { text: "Sell something you don't use", effects: { money: 30 } },
+      { text: 'Book a checkup', effects: { money: -35, happiness: 2, iq: 1 } },
+      { text: 'Go for daily walks', effects: { happiness: 3, charm: 1 } },
+      { text: 'Skip this month', effects: { money: 15, happiness: -2 } },
+      { text: 'Join a sports club', effects: { money: -80, happiness: 4, charm: 2 } },
     ],
   },
 ];
 
-export const PREGNANCY_EVENT = {
-  id: 'pregnancy_event',
-  title: 'Pregnancy Decision',
-  description: 'You have a chance to have a baby. Do you want to proceed?',
-  options: [
-    { text: 'Yes, have a baby now', effects: { action: 'haveBaby' } },
-    { text: 'No, maybe later', effects: { happiness: -1 } },
-  ],
-};
-
-export function createGirlfriendEvent() {
-  return {
-    id: 'girlfriend_event',
-    title: 'Teen Relationship',
-    description: 'Your teenager wants to start a relationship. What do you advise?',
-    options: [
-      { text: 'Support it with guidance', effects: { hasPartner: true, happiness: 5, love: 5 } },
-      { text: 'Allow only with strict rules', effects: { hasPartner: true, happiness: 1, love: 2 } },
-      { text: 'Focus on studies first', effects: { intelligence: 3, happiness: -2 } },
-      { text: 'Say no for now', effects: { happiness: -4 } },
-    ],
-  };
-}
-
-export function createMarriageEvent() {
+export function createMarriageEvent(person) {
   return {
     id: 'marriage_event',
-    title: 'Marriage Proposal Time',
-    description: 'Now 18+, your child is thinking about marriage. What is the direction?',
+    title: 'A serious relationship starts',
+    description: `${person.name} met someone special. What should happen next?`,
     options: [
-      { text: 'Get married now', effects: { married: true, happiness: 8, incomePerSecond: 0.3 } },
-      { text: 'Wait and build stability', effects: { love: 3, intelligence: 2 } },
-      { text: 'Focus on career first', effects: { incomePerSecond: 0.4, happiness: -1 } },
-      { text: 'End the relationship', effects: { hasPartner: false, love: -8, happiness: -5 } },
+      { text: 'Get married soon', effects: { married: true, happiness: 8, love: 8, charm: 2 } },
+      { text: 'Date for a while first', effects: { love: 4, happiness: 4 } },
+      { text: 'Stay focused on work', effects: { iq: 1, happiness: -2, love: -2 } },
+      { text: 'Not interested right now', effects: { happiness: -1, love: -3 } },
     ],
   };
 }
 
-export function createSchoolEvent(type) {
-  if (type === 'primary') {
-    return {
-      id: 'school_primary',
-      title: 'Primary School Decision',
-      description: 'Choose a school type for your child.',
-      options: [
-        { text: 'Public school', effects: { money: -100, childExpense: -0.1, intelligence: 3 } },
-        { text: 'Private school', effects: { money: -400, childExpense: -0.3, intelligence: 6 } },
-        { text: 'Elite school', effects: { money: -1000, childExpense: -0.6, intelligence: 10 } },
-      ],
-    };
-  }
+export function createPromotionEvent(currentLevel) {
+  return {
+    id: 'promotion_event',
+    title: 'Career growth opportunity',
+    description: 'Your manager is considering you for a promotion.',
+    options: [
+      { text: 'Push for promotion', effects: { promote: true, happiness: 4, iq: 2 } },
+      { text: 'Ask for training first', effects: { iq: 3, charm: 1, happiness: 2 } },
+      { text: 'Decline for now', effects: { happiness: 1, love: 1 } },
+      {
+        text: currentLevel > 2 ? 'Switch teams' : 'Take on extra projects',
+        effects: { promote: true, happiness: -1, charm: 2 },
+      },
+    ],
+  };
+}
 
-  if (type === 'middle') {
-    return {
-      id: 'school_middle',
-      title: 'Middle School Decision',
-      description: 'Time to choose middle school path.',
-      options: [
-        { text: 'Public middle school', effects: { money: -150, childExpense: -0.12, intelligence: 4 } },
-        { text: 'Private middle school', effects: { money: -500, childExpense: -0.35, intelligence: 7 } },
-        { text: 'Elite academy', effects: { money: -1400, childExpense: -0.65, intelligence: 12 } },
-      ],
-    };
-  }
+export function createApplyJobEvent() {
+  const jobs = [
+    'Retail Associate',
+    'Office Assistant',
+    'Warehouse Operator',
+    'Support Agent',
+    'Junior Designer',
+    'Barista',
+  ]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 4);
 
   return {
-    id: 'post_middle_path',
-    title: 'After Middle School Path',
-    description: 'Choose the next step after middle school.',
+    id: 'job_apply_event',
+    title: 'Job applications',
+    description: 'You are unemployed. Pick one job offer or refresh.',
     options: [
-      { text: 'Start working', effects: { childIncome: 0.5, intelligence: 1, happiness: 1 } },
-      { text: 'Community college', effects: { money: -600, childExpense: -0.2, intelligence: 8 } },
-      { text: 'University', effects: { money: -1800, childExpense: -0.5, intelligence: 15 } },
-      { text: 'Vocational program', effects: { money: -800, childExpense: -0.25, intelligence: 10, childIncome: 0.2 } },
+      ...jobs.map((job) => ({
+        text: `Apply: ${job}`,
+        effects: {
+          jobTitle: job,
+          salaryPerSecond: 120 + Math.floor(Math.random() * 96),
+          happiness: 2,
+          love: 1,
+        },
+      })),
+      { text: 'Refresh offers', effects: { action: 'refreshJobs', iq: 1 } },
     ],
+  };
+}
+
+export function createBabyNamingEvent() {
+  const options = Array.from({ length: 4 }).map(() => generatePersonName());
+
+  return {
+    id: 'baby_name_event',
+    title: 'Name your newborn',
+    description: 'Your child is born! Choose a name.',
+    options: options.map((name) => ({
+      text: name,
+      effects: { action: 'nameBaby', babyName: name, happiness: 6, love: 6, money: -250 },
+    })),
   };
 }

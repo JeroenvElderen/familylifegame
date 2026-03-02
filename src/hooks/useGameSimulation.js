@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BASE_EVENTS,
-  createGirlfriendEvent,
+  createApplyJobEvent,
+  createBabyNamingEvent,
   createMarriageEvent,
-  createSchoolEvent,
-  PREGNANCY_EVENT,
+  createPromotionEvent,
 } from '../data/events';
 import {
   clampNumber,
@@ -12,192 +12,248 @@ import {
   DAY_MS,
   EVENT_MS,
   formatMoney,
-  LOVE_TICK_MS,
+  generatePersonName,
   pickRandomEvent,
   randomAvatar,
   TICK_MS,
 } from '../utils/gameUtils';
 
-const initialState = () => ({
-  money: 100,
-  incomePerSecond: 1,
-  isRunning: false,
-  time: { age: 24, dayOfYear: 1, yearsPassed: 0 },
-  relationship: { happiness: 50, love: 30, hasPartner: false, married: false },
-  family: {
-    parentA: { avatar: randomAvatar() },
-    parentB: { avatar: randomAvatar() },
-    child: null,
+let personIdCounter = 1;
+
+const randomTraits = () => {
+  const pool = ['Romantic', 'Charming', 'Genius', 'Triplet Luck', 'Ambitious', 'Careful with money'];
+  return [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
+};
+
+const createPerson = ({ ageYears = 21, parentId = null, name } = {}) => ({
+  id: `p_${personIdCounter++}`,
+  name: name ?? generatePersonName(),
+  avatar: randomAvatar(),
+  ageDays: ageYears * DAYS_PER_YEAR,
+  parentId,
+  childrenIds: [],
+  partnerName: null,
+  married: false,
+  traits: randomTraits(),
+  stats: {
+    happiness: 55,
+    love: 40,
+    charm: 45,
+    iq: 50,
   },
+  job: {
+    employed: true,
+    title: 'Junior Clerk',
+    level: 1,
+    salaryPerSecond: 120 + Math.floor(Math.random() * 96),
+  },
+  childCostPerSecond: 0,
 });
+
+const initialState = () => {
+  const founder = createPerson({ ageYears: 21 });
+  return {
+    money: 1000,
+    isRunning: false,
+    day: 1,
+    yearsPassed: 0,
+    family: {
+      activePersonId: founder.id,
+      selectedPersonId: founder.id,
+      people: { [founder.id]: founder },
+    },
+  };
+};
 
 export function useGameSimulation() {
   const [state, setState] = useState(initialState);
   const [currentEvent, setCurrentEvent] = useState(null);
   const [pendingEvent, setPendingEvent] = useState(null);
+  const [pendingBabyParentId, setPendingBabyParentId] = useState(null);
   const lastEventIdRef = useRef(null);
-  const eventOpenRef = useRef(false);
+
+  const activePerson = state.family.people[state.family.activePersonId];
+  const selectedPerson = state.family.people[state.family.selectedPersonId];
+  const incomePerSecond = (activePerson?.job.salaryPerSecond ?? 0) - (activePerson?.childCostPerSecond ?? 0);
 
   useEffect(() => {
-    eventOpenRef.current = !!currentEvent;
-  }, [currentEvent]);
-
-  const maybeQueueMilestoneEvents = (draft) => {
-    const child = draft.family.child;
-    if (!child) return null;
-
-    if (child.age >= 6 && !child.school.primaryChosen) return createSchoolEvent('primary');
-    if (child.age >= 12 && !child.school.middleChosen) return createSchoolEvent('middle');
-    if (child.age >= 15 && !child.school.afterMiddleChosen) return createSchoolEvent('afterMiddle');
-    if (child.age >= 13 && !child.milestones.teenDatingShown) return createGirlfriendEvent();
-    if (
-      child.age >= 18 &&
-      draft.relationship.hasPartner &&
-      !child.milestones.marriageShown
-    ) {
-      return createMarriageEvent();
-    }
-    return null;
-  };
-
-  useEffect(() => {
-    if (!state.isRunning) return;
+    if (!state.isRunning || !activePerson) return;
     const id = setInterval(() => {
-      setState((prev) => ({ ...prev, money: clampNumber(prev.money + prev.incomePerSecond) }));
+      setState((prev) => ({ ...prev, money: clampNumber(prev.money + incomePerSecond) }));
     }, TICK_MS);
     return () => clearInterval(id);
-  }, [state.isRunning]);
+  }, [state.isRunning, incomePerSecond, activePerson]);
 
   useEffect(() => {
     if (!state.isRunning) return;
     const id = setInterval(() => {
       setState((prev) => {
-        const day = prev.time.dayOfYear + 1;
-        const willWrap = day > DAYS_PER_YEAR;
-        const nextTime = {
-          age: willWrap ? prev.time.age + 1 : prev.time.age,
-          yearsPassed: willWrap ? prev.time.yearsPassed + 1 : prev.time.yearsPassed,
-          dayOfYear: willWrap ? 1 : day,
-        };
+        const person = prev.family.people[prev.family.activePersonId];
+        if (!person) return prev;
+        const nextDay = prev.day + 1;
+        const wraps = nextDay > DAYS_PER_YEAR;
 
-        const nextChild = prev.family.child
-          ? {
-              ...prev.family.child,
-              ageDays: prev.family.child.ageDays + 1,
-              age: Math.floor((prev.family.child.ageDays + 1) / DAYS_PER_YEAR),
-            }
-          : null;
-
-        const next = {
+        return {
           ...prev,
-          time: nextTime,
-          family: { ...prev.family, child: nextChild },
+          day: wraps ? 1 : nextDay,
+          yearsPassed: wraps ? prev.yearsPassed + 1 : prev.yearsPassed,
+          family: {
+            ...prev.family,
+            people: {
+              ...prev.family.people,
+              [person.id]: {
+                ...person,
+                ageDays: person.ageDays + 1,
+              },
+            },
+          },
         };
-
-        const milestoneEvent = maybeQueueMilestoneEvents(next);
-        if (milestoneEvent) setPendingEvent(milestoneEvent);
-        return next;
       });
     }, DAY_MS);
     return () => clearInterval(id);
   }, [state.isRunning]);
 
   useEffect(() => {
-    if (!state.isRunning) return;
+    if (!state.isRunning || currentEvent) return;
     const id = setInterval(() => {
-      setState((prev) => ({
-        ...prev,
-        relationship: { ...prev.relationship, love: prev.relationship.love + 1 },
-      }));
-    }, LOVE_TICK_MS);
-    return () => clearInterval(id);
-  }, [state.isRunning]);
-
-  useEffect(() => {
-    if (!state.isRunning) return;
-    const id = setInterval(() => {
-      if (eventOpenRef.current) return;
       if (pendingEvent) {
         setCurrentEvent(pendingEvent);
         setPendingEvent(null);
         return;
       }
 
-      const eventPool = [...BASE_EVENTS];
-      if (!state.family.child) eventPool.push(PREGNANCY_EVENT);
+      const person = state.family.people[state.family.activePersonId];
+      if (!person) return;
+      const age = Math.floor(person.ageDays / DAYS_PER_YEAR);
 
-      const ev = pickRandomEvent(eventPool, lastEventIdRef.current);
+      if (!person.married && age >= 21 && state.day > 5) {
+        setCurrentEvent(createMarriageEvent(person));
+        return;
+      }
+
+      if (!person.job.employed) {
+        setCurrentEvent(createApplyJobEvent());
+        return;
+      }
+
+      if (Math.random() < 0.35) {
+        setCurrentEvent(createPromotionEvent(person.job.level));
+        return;
+      }
+
+      if (person.married && age >= 23 && person.childrenIds.length < 3 && Math.random() < 0.4) {
+        setCurrentEvent({
+          id: 'baby_offer',
+          title: 'Family Planning',
+          description: 'You and your partner are considering a child.',
+          options: [
+            { text: 'Yes, let\'s try', effects: { action: 'startBabyNaming' } },
+            { text: 'Not now', effects: { happiness: -1, love: -1 } },
+          ],
+        });
+        return;
+      }
+
+      const ev = pickRandomEvent(BASE_EVENTS, lastEventIdRef.current);
       if (!ev) return;
       lastEventIdRef.current = ev.id;
       setCurrentEvent(ev);
     }, EVENT_MS);
-
     return () => clearInterval(id);
-  }, [state.isRunning, state.family.child, pendingEvent]);
+  }, [state.isRunning, currentEvent, pendingEvent, state.family, state.day]);
 
   const applyEffects = (effects) => {
     if (!effects) return;
     setState((prev) => {
-      let next = {
-        ...prev,
-        money: clampNumber(prev.money + (effects.money ?? 0)),
-        incomePerSecond: prev.incomePerSecond + (effects.incomePerSecond ?? 0),
-        relationship: {
-          ...prev.relationship,
-          happiness: prev.relationship.happiness + (effects.happiness ?? 0),
-          love: prev.relationship.love + (effects.love ?? 0),
-          hasPartner: effects.hasPartner ?? prev.relationship.hasPartner,
-          married: effects.married ?? prev.relationship.married,
+      const person = prev.family.people[prev.family.activePersonId];
+      if (!person) return prev;
+
+      const updated = {
+        ...person,
+        stats: {
+          happiness: person.stats.happiness + (effects.happiness ?? 0),
+          love: person.stats.love + (effects.love ?? 0),
+          charm: person.stats.charm + (effects.charm ?? 0),
+          iq: person.stats.iq + (effects.iq ?? 0),
         },
       };
 
-      if (effects.action === 'haveBaby' && !next.family.child) {
-        next = {
-          ...next,
+      if (effects.married) {
+        updated.married = true;
+        updated.partnerName = generatePersonName();
+      }
+
+      if (effects.action === 'unemployed') {
+        updated.job = { employed: false, title: 'Unemployed', level: 0, salaryPerSecond: 0 };
+      }
+
+      if (effects.jobTitle) {
+        updated.job = {
+          employed: true,
+          title: effects.jobTitle,
+          level: 1,
+          salaryPerSecond: effects.salaryPerSecond,
+        };
+      }
+
+      if (effects.promote) {
+        updated.job = {
+          ...updated.job,
+          level: updated.job.level + 1,
+          salaryPerSecond: Math.round(updated.job.salaryPerSecond * (1.15 + Math.random() * 0.15)),
+        };
+      }
+
+      return {
+        ...prev,
+        money: clampNumber(prev.money + (effects.money ?? 0)),
+        family: {
+          ...prev.family,
+          people: {
+            ...prev.family.people,
+            [updated.id]: updated,
+          },
+        },
+      };
+    });
+
+    if (effects.action === 'startBabyNaming') {
+      setPendingBabyParentId(state.family.activePersonId);
+      setPendingEvent(createBabyNamingEvent());
+    }
+
+    if (effects.action === 'refreshJobs') {
+      setPendingEvent(createApplyJobEvent());
+    }
+
+    if (effects.action === 'nameBaby' && pendingBabyParentId) {
+      setState((prev) => {
+        const parent = prev.family.people[pendingBabyParentId];
+        if (!parent) return prev;
+        const newBaby = createPerson({ ageYears: 0, parentId: parent.id, name: effects.babyName });
+        newBaby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0 };
+        newBaby.childCostPerSecond = 60;
+
+        const parentUpdated = {
+          ...parent,
+          childrenIds: [...parent.childrenIds, newBaby.id],
+          childCostPerSecond: parent.childCostPerSecond + 60,
+        };
+
+        return {
+          ...prev,
           family: {
-            ...next.family,
-            child: {
-              avatar: randomAvatar(),
-              ageDays: 0,
-              age: 0,
-              intelligence: 5,
-              expensePerSecond: 0.6,
-              incomePerSecond: 0,
-              school: { primaryChosen: false, middleChosen: false, afterMiddleChosen: false },
-              milestones: { teenDatingShown: false, marriageShown: false },
+            ...prev.family,
+            people: {
+              ...prev.family.people,
+              [parentUpdated.id]: parentUpdated,
+              [newBaby.id]: newBaby,
             },
           },
-          incomePerSecond: next.incomePerSecond - 0.6,
-          relationship: { ...next.relationship, happiness: next.relationship.happiness + 5, love: next.relationship.love + 4 },
         };
-      }
-
-      if (next.family.child) {
-        const updatedChild = {
-          ...next.family.child,
-          intelligence: next.family.child.intelligence + (effects.intelligence ?? 0),
-          expensePerSecond: Math.max(0, next.family.child.expensePerSecond + (effects.childExpense ?? 0)),
-          incomePerSecond: Math.max(0, next.family.child.incomePerSecond + (effects.childIncome ?? 0)),
-        };
-
-        if (currentEvent?.id === 'girlfriend_event') updatedChild.milestones.teenDatingShown = true;
-        if (currentEvent?.id === 'marriage_event') updatedChild.milestones.marriageShown = true;
-        if (currentEvent?.id === 'school_primary') updatedChild.school.primaryChosen = true;
-        if (currentEvent?.id === 'school_middle') updatedChild.school.middleChosen = true;
-        if (currentEvent?.id === 'post_middle_path') updatedChild.school.afterMiddleChosen = true;
-
-        const netChildDelta = updatedChild.incomePerSecond - updatedChild.expensePerSecond;
-        const prevNetChildDelta = next.family.child.incomePerSecond - next.family.child.expensePerSecond;
-
-        next = {
-          ...next,
-          incomePerSecond: next.incomePerSecond + (netChildDelta - prevNetChildDelta),
-          family: { ...next.family, child: updatedChild },
-        };
-      }
-
-      return next;
-    });
+      });
+      setPendingBabyParentId(null);
+    }
   };
 
   const chooseOption = (idx) => {
@@ -208,19 +264,26 @@ export function useGameSimulation() {
   };
 
   const reset = () => {
+    personIdCounter = 1;
     setState(initialState());
     setCurrentEvent(null);
     setPendingEvent(null);
+    setPendingBabyParentId(null);
     lastEventIdRef.current = null;
-    eventOpenRef.current = false;
   };
 
   return {
     ...state,
+    activePerson,
+    selectedPerson,
+    incomePerSecond,
     currentEvent,
     chooseOption,
     reset,
     setIsRunning: (value) => setState((prev) => ({ ...prev, isRunning: value })),
+    selectPerson: (personId) => setState((prev) => ({ ...prev, family: { ...prev.family, selectedPersonId: personId } })),
+    setActivePerson: (personId) =>
+      setState((prev) => ({ ...prev, family: { ...prev.family, activePersonId: personId, selectedPersonId: personId } })),
     moneyDisplay: useMemo(() => formatMoney(state.money), [state.money]),
   };
 }
