@@ -34,6 +34,39 @@ export const BASE_EVENTS = [
       { text: 'Join a sports club', effects: { money: -80, happiness: 4, charm: 2 } },
     ],
   },
+  {
+    id: 'ev_weekend_trip',
+    title: 'Weekend plan',
+    description: 'The weekend is free. How do you want to spend it?',
+    options: [
+      { text: 'Go on a mini trip', effects: { money: -140, happiness: 7, love: 2 } },
+      { text: 'Stay home and recharge', effects: { happiness: 3, iq: 1 } },
+      { text: 'Work overtime', effects: { money: 90, happiness: -2 } },
+      { text: 'Host friends for dinner', effects: { money: -60, happiness: 4, charm: 2 } },
+    ],
+  },
+  {
+    id: 'ev_family_visit',
+    title: 'Family visit call',
+    description: 'A relative asks if you can visit this week.',
+    options: [
+      { text: 'Visit this weekend', effects: { money: -30, happiness: 4, love: 4 } },
+      { text: 'Send gifts instead', effects: { money: -50, love: 3 } },
+      { text: 'Postpone politely', effects: { iq: 1, love: -1 } },
+      { text: 'Skip this time', effects: { happiness: -1, love: -3 } },
+    ],
+  },
+  {
+    id: 'ev_skill_course',
+    title: 'Skill course discount',
+    description: 'A limited-time online course could boost your future opportunities.',
+    options: [
+      { text: 'Enroll now', effects: { money: -110, iq: 5, happiness: 2 } },
+      { text: 'Take the short version', effects: { money: -60, iq: 3 } },
+      { text: 'Learn from free resources', effects: { iq: 2, happiness: 1 } },
+      { text: 'Skip and focus on routine', effects: { money: 20, iq: -1 } },
+    ],
+  },
 ];
 
 const JOB_ROLES = [

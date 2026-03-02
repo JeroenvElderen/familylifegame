@@ -75,18 +75,38 @@ export function useGameSimulation() {
   const [pendingEvent, setPendingEvent] = useState(null);
   const [pendingBabyParentId, setPendingBabyParentId] = useState(null);
   const lastEventIdRef = useRef(null);
+  const latestStateRef = useRef(state);
+  const currentEventRef = useRef(currentEvent);
+  const pendingEventRef = useRef(pendingEvent);
+
+  useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    currentEventRef.current = currentEvent;
+  }, [currentEvent]);
+
+  useEffect(() => {
+    pendingEventRef.current = pendingEvent;
+  }, [pendingEvent]);
 
   const activePerson = state.family.people[state.family.activePersonId];
   const selectedPerson = state.family.people[state.family.selectedPersonId];
   const incomePerSecond = (activePerson?.job.salaryPerSecond ?? 0) - (activePerson?.childCostPerSecond ?? 0);
 
   useEffect(() => {
-    if (!state.isRunning || !activePerson) return;
+    if (!state.isRunning) return;
     const id = setInterval(() => {
-      setState((prev) => ({ ...prev, money: clampNumber(prev.money + incomePerSecond) }));
+      setState((prev) => {
+        const person = prev.family.people[prev.family.activePersonId];
+        if (!person) return prev;
+        const netIncome = person.job.salaryPerSecond - person.childCostPerSecond;
+        return { ...prev, money: clampNumber(prev.money + netIncome) };
+      });
     }, TICK_MS);
     return () => clearInterval(id);
-  }, [state.isRunning, incomePerSecond, activePerson]);
+  }, [state.isRunning]);
 
   useEffect(() => {
     if (!state.isRunning) return;
@@ -118,15 +138,18 @@ export function useGameSimulation() {
   }, [state.isRunning]);
 
   useEffect(() => {
-    if (!state.isRunning || currentEvent) return;
+    if (!state.isRunning) return;
     const id = setInterval(() => {
-      if (pendingEvent) {
-        setCurrentEvent(pendingEvent);
+      if (currentEventRef.current) return;
+
+      if (pendingEventRef.current) {
+        setCurrentEvent(pendingEventRef.current);
         setPendingEvent(null);
         return;
       }
 
-      const person = state.family.people[state.family.activePersonId];
+      const snapshot = latestStateRef.current;
+      const person = snapshot.family.people[snapshot.family.activePersonId];
       if (!person) return;
       const age = Math.floor(person.ageDays / DAYS_PER_YEAR);
 
@@ -161,7 +184,7 @@ export function useGameSimulation() {
       setCurrentEvent(ev);
     }, EVENT_MS);
     return () => clearInterval(id);
-  }, [state.isRunning, currentEvent, pendingEvent, state.family, state.day]);
+  }, [state.isRunning]);
 
   const applyEffects = (effects) => {
     if (!effects) return;
