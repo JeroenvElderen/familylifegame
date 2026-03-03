@@ -1,4 +1,4 @@
-import { generatePersonName } from '../utils/gameUtils';
+import { BOY_NAMES, GIRL_NAMES } from '../utils/gameUtils';
 
 const OPTION_INTENTS = {
   positive: [
@@ -236,11 +236,33 @@ export function createAIBabyProposalEvent(person) {
     id: 'ai_baby_proposal',
     title: `${person.name} wants to try for a baby`,
     description: `${person.name} and ${person.partnerName ?? 'their partner'} feel ready to grow the family. What do you want to do?`,
-    options: buildDynamicOptions([
-      { action: 'startBabyNaming', happiness: 2, love: 3 },
-      { iq: 2, love: -1, money: 40 },
-      { happiness: -2, love: -3 },
-    ]),
+    options: [
+      { text: 'Try for a child now', effects: { action: 'startPregnancyPlan', happiness: 2, love: 3 } },
+      { text: 'Wait and save money', effects: { iq: 2, love: -1, money: 40 } },
+      { text: 'Not ready for a child', effects: { happiness: -2, love: -3 } },
+    ],
+  };
+}
+
+export function createPregnancyPlanEvent() {
+  return {
+    id: 'pregnancy_plan_event',
+    title: 'Family planning choices',
+    description: 'Pick how to handle the pregnancy decision right now.',
+    options: [
+      {
+        text: 'Choose doctor (cost €900)',
+        effects: { action: 'startBabyNaming', planType: 'doctor', money: -900, happiness: 4, love: 4 },
+      },
+      {
+        text: 'Budget clinic path (cost €300)',
+        effects: { action: 'startBabyNaming', planType: 'budget', money: -300, happiness: 1, love: 2 },
+      },
+      {
+        text: 'Take abortion',
+        effects: { money: -180, happiness: -3, love: -4 },
+      },
+    ],
   };
 }
 
@@ -270,13 +292,15 @@ export function createPartnerLifeEvent(person) {
   };
 }
 
-export function createBabyNamingEvent() {
-  const options = Array.from({ length: 4 }).map(() => generatePersonName());
+export function createBabyNamingEvent(gender) {
+  const sourceNames = gender === 'boy' ? BOY_NAMES : GIRL_NAMES;
+  const options = [...sourceNames].sort(() => Math.random() - 0.5).slice(0, 4);
+  const label = gender === 'boy' ? 'boy' : 'girl';
 
   return {
     id: 'baby_name_event',
-    title: 'Name your newborn',
-    description: 'Your child is born! Choose a name.',
+    title: `Name your newborn ${label}`,
+    description: `Your child is born (${label}). Choose a name.`,
     options: options.map((name) => ({
       text: name,
       effects: { action: 'nameBaby', babyName: name, happiness: 6, love: 6, money: -250 },

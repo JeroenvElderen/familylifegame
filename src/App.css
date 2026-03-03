@@ -28,6 +28,7 @@ body {
 .treeRow { display: flex; align-items: flex-start; justify-content: center; gap: 18px; flex-wrap: wrap; }
 .treeRow.top { opacity: 0.85; margin-top: 8px; }
 .treeRow.mid { margin-top: 12px; align-items: center; }
+.treeRow.bottom.withBranch { position: relative; padding-top: 20px; }
 .treeRow.bottom { margin-top: 12px; }
 .avatarNode { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; min-width: 100px; }
 .avatarNode.active .avatarBubble { box-shadow: 0 0 0 2px #84c1ff; }
@@ -40,7 +41,11 @@ body {
 .avatarIncome.gain { color: #63e48d; }
 .avatarIncome.cost { color: #ff7f7f; }
 .partnerNode { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.coupleGroup { position: relative; display: inline-flex; align-items: flex-start; gap: 18px; }
+.partnerLink { position: absolute; top: 28px; left: 66px; height: 2px; background: #8cb8ef; }
 .treeConnector { width: 2px; height: 24px; background: #6db7ff; margin: 8px auto 0; }
+.childrenBranch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: min(460px, 72%); height: 2px; background: #6db7ff; }
+.childrenBranch::before { content: ""; position: absolute; left: 50%; top: -18px; width: 2px; height: 18px; background: #6db7ff; }
 .emptyChild { opacity: 0.7; font-size: 14px; }
 .memberCard { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.15); }
 .memberCardHint { margin-top: 16px; opacity: 0.75; font-size: 13px; }

@@ -6,24 +6,36 @@ export const SCHOOL_STAGE_YEARS = 2;
 export const SCHOOL_STAGES = ['Primary School', 'Middle School', 'High School'];
 
 const AVATARS = ['👩', '👨', '🧑‍🦱', '👩‍🦰', '👨‍🦳', '🧔', '👱‍♀️', '👱‍♂️', '🧑‍🦳', '👧', '👦'];
-const FIRST_NAMES = [
+export const BOY_NAMES = [
   'Liam',
   'Noah',
+  'Mason',
+  'Ethan',
+  'Lucas',
+  'Leo',
+  'Ezra',
+  'Aiden',
+  'Logan',
+  'James',
+  'Benjamin',
+];
+
+export const GIRL_NAMES = [
   'Emma',
   'Olivia',
   'Ava',
   'Sophia',
-  'Mason',
-  'Ethan',
-  'Lucas',
   'Mila',
   'Ella',
   'Aria',
-  'Leo',
   'Nora',
   'Ivy',
-  'Ezra',
+  'Amelia',
+  'Luna',
+  'Chloe',
 ];
+
+const FIRST_NAMES = [...BOY_NAMES, ...GIRL_NAMES];
 
 export function generatePersonName() {
   return FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)];

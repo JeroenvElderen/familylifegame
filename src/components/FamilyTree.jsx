@@ -38,22 +38,28 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
         ) : null}
 
         <div className="treeRow mid">
-          <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive popup={cashPopups[activePerson.id]} />
-          {activePerson.partnerName ? (
-            <div className="partnerNode">
-              <div className="avatarBubble partner">{activePerson.partnerAvatar ?? '🙂'}</div>
-              <div className="avatarLabel">{activePerson.partnerName}</div>
-            </div>
-          ) : null}
+          <div className="coupleGroup">
+            <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive popup={cashPopups[activePerson.id]} />
+            {activePerson.partnerName ? (
+              <div className="partnerNode">
+                <div className="avatarBubble partner">{activePerson.partnerAvatar ?? '🙂'}</div>
+                <div className="avatarLabel">{activePerson.partnerName}</div>
+              </div>
+            ) : null}
+            {activePerson.partnerName ? <div className="partnerLink" /> : null}
+          </div>
         </div>
 
-        <div className="treeConnector" />
+        {activePerson.partnerName ? <div className="treeConnector" /> : null}
 
-        <div className="treeRow bottom">
+        <div className="treeRow bottom withBranch">
           {children.length ? (
-            children.map((child) => (
-              <Avatar key={child.id} person={child} onSelect={onSelectPerson} onActivate={onActivatePerson} popup={cashPopups[child.id]} />
-            ))
+            <>
+              <div className="childrenBranch" />
+              {children.map((child) => (
+                <Avatar key={child.id} person={child} onSelect={onSelectPerson} onActivate={onActivatePerson} popup={cashPopups[child.id]} />
+              ))}
+            </>
           ) : (
             <div className="emptyChild">No children yet</div>
           )}
