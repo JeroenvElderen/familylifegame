@@ -7,6 +7,7 @@ import {
   createBabyNamingEvent,
   createGirlfriendEvent,
   createMarriageEvent,
+  createPartnerLifeEvent,
   createPromotionEvent,
 } from '../data/events';
 import {
@@ -19,6 +20,8 @@ import {
   generatePersonName,
   pickRandomEvent,
   randomAvatar,
+  SCHOOL_STAGES,
+  SCHOOL_STAGE_YEARS,
   TICK_MS,
 } from '../utils/gameUtils';
 
@@ -30,6 +33,21 @@ const randomTraits = () => {
 };
 
 const withTarget = (event, person) => ({ ...event, targetPersonId: person.id, targetPersonName: person.name });
+
+const SCHOOL_DAYS_PER_STAGE = SCHOOL_STAGE_YEARS * DAYS_PER_YEAR;
+const SCHOOL_START_AGE = 6;
+
+const isSchoolCompleted = (person, currentAbsoluteDay) => {
+  if (!person.education || person.education.completed) return true;
+
+  const ageYears = Math.floor(person.ageDays / DAYS_PER_YEAR);
+  if (ageYears < SCHOOL_START_AGE) return false;
+
+  const schoolStartDay = person.education.schoolStartDay ?? person.joinedDay + SCHOOL_START_AGE * DAYS_PER_YEAR;
+  const elapsed = Math.max(0, currentAbsoluteDay - schoolStartDay);
+  const completedStages = Math.floor(elapsed / SCHOOL_DAYS_PER_STAGE);
+  return completedStages >= SCHOOL_STAGES.length;
+};
 
 const createPerson = ({ ageYears = 21, parentId = null, name, joinedDay = 1 } = {}) => ({
   id: `p_${personIdCounter++}`,
@@ -57,6 +75,10 @@ const createPerson = ({ ageYears = 21, parentId = null, name, joinedDay = 1 } = 
     salaryPerSecond: 120 + Math.floor(Math.random() * 96),
   },
   childCostPerSecond: 0,
+  education: {
+    completed: true,
+    schoolStartDay: null,
+  },
 });
 
 const initialState = () => {
@@ -179,7 +201,7 @@ export function useGameSimulation() {
 
       const snapshot = latestStateRef.current;
       const people = Object.values(snapshot.family.people);
-      const minGap = EVENT_MS + people.length * 1500;
+      const minGap = EVENT_MS + people.length * 3000;
       if (Date.now() - lastEventAtRef.current < minGap) return;
 
       if (pendingEventRef.current) {
@@ -209,13 +231,21 @@ export function useGameSimulation() {
         return;
       }
 
-      if (!person.job.employed) {
+      const schoolCompleted = isSchoolCompleted(person, currentAbsoluteDay);
+
+      if (person.hasPartner && Math.random() < 0.2) {
+        setCurrentEvent(withTarget(createPartnerLifeEvent(person), person));
+        lastEventAtRef.current = Date.now();
+        return;
+      }
+
+      if (!person.job.employed && schoolCompleted) {
         setCurrentEvent(withTarget(createApplyJobEvent(), person));
         lastEventAtRef.current = Date.now();
         return;
       }
 
-      if (Math.random() < 0.2) {
+      if (schoolCompleted && Math.random() < 0.2) {
         setCurrentEvent(withTarget(createPromotionEvent(person.job.level), person));
         lastEventAtRef.current = Date.now();
         return;
@@ -227,7 +257,7 @@ export function useGameSimulation() {
         return;
       }
 
-      if (Math.random() < 0.2) {
+      if (schoolCompleted && Math.random() < 0.2) {
         setCurrentEvent(withTarget(createAICareerFocusEvent(person), person));
         lastEventAtRef.current = Date.now();
         return;
@@ -330,7 +360,11 @@ export function useGameSimulation() {
         const newBaby = createPerson({ ageYears: 0, parentId: parent.id, name: effects.babyName, joinedDay: absoluteDay });
         newBaby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0 };
         newBaby.childCostPerSecond = 60;
-
+        newBaby.education = {
+          completed: false,
+          schoolStartDay: absoluteDay + SCHOOL_START_AGE * DAYS_PER_YEAR,
+        };
+        
         const parentUpdated = {
           ...parent,
           childrenIds: [...parent.childrenIds, newBaby.id],

@@ -1,5 +1,33 @@
 import { generatePersonName } from '../utils/gameUtils';
 
+const OPTION_INTENTS = {
+  positive: [
+    'Support enthusiastically',
+    'Encourage this idea',
+    'Go all-in together',
+    'Back the plan with confidence',
+  ],
+  balanced: [
+    'Take a careful middle path',
+    'Try a smaller first step',
+    'Plan before committing',
+    'Test it and review later',
+  ],
+  cautious: ['Delay the decision', 'Focus on stability first', 'Wait for a better moment', 'Keep things unchanged'],
+};
+
+function buildDynamicOptions(effectProfiles) {
+  const tones = ['positive', 'balanced', 'cautious'];
+  return effectProfiles.map((effects, idx) => {
+    const tone = tones[idx % tones.length];
+    const pool = OPTION_INTENTS[tone];
+    return {
+      text: pool[Math.floor(Math.random() * pool.length)],
+      effects,
+    };
+  });
+}
+
 export const BASE_EVENTS = [
   {
     id: 'ev_fee',
@@ -208,11 +236,11 @@ export function createAIBabyProposalEvent(person) {
     id: 'ai_baby_proposal',
     title: `${person.name} wants to try for a baby`,
     description: `${person.name} and ${person.partnerName ?? 'their partner'} feel ready to grow the family. What do you want to do?`,
-    options: [
-      { text: 'Support the plan', effects: { action: 'startBabyNaming', happiness: 2, love: 3 } },
-      { text: 'Wait and prepare finances', effects: { iq: 2, love: -1, money: 40 } },
-      { text: 'Decline for now', effects: { happiness: -2, love: -3 } },
-    ],
+    options: buildDynamicOptions([
+      { action: 'startBabyNaming', happiness: 2, love: 3 },
+      { iq: 2, love: -1, money: 40 },
+      { happiness: -2, love: -3 },
+    ]),
   };
 }
 
@@ -221,11 +249,24 @@ export function createAICareerFocusEvent(person) {
     id: 'ai_career_focus',
     title: `${person.name} wants a career pivot`,
     description: `${person.name} is feeling ambitious and asks for your guidance on the next step.`,
-    options: [
-      { text: 'Push for training', effects: { iq: 3, happiness: 2, money: -50 } },
-      { text: 'Apply for leadership tasks', effects: { promote: true, charm: 2, happiness: -1 } },
-      { text: 'Keep current pace', effects: { happiness: 1 } },
-    ],
+    options: buildDynamicOptions([
+      { iq: 3, happiness: 2, money: -50 },
+      { promote: true, charm: 2, happiness: -1 },
+      { happiness: 1 },
+    ]),
+  };
+}
+
+export function createPartnerLifeEvent(person) {
+  return {
+    id: 'partner_life_event',
+    title: `${person.partnerName ?? 'Your partner'} has a request`,
+    description: `${person.partnerName ?? 'Your partner'} wants to plan something important with ${person.name}.`,
+    options: buildDynamicOptions([
+      { happiness: 3, love: 4, money: -45 },
+      { love: 2, iq: 1 },
+      { happiness: -2, love: -3, money: 20 },
+    ]),
   };
 }
 

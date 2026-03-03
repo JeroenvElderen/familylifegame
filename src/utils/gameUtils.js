@@ -1,7 +1,9 @@
 export const TICK_MS = 1000;
 export const DAY_MS = 60;
-export const EVENT_MS = 12000;
+export const EVENT_MS = 22000;
 export const DAYS_PER_YEAR = 365;
+export const SCHOOL_STAGE_YEARS = 2;
+export const SCHOOL_STAGES = ['Primary School', 'Middle School', 'High School'];
 
 const AVATARS = ['👩', '👨', '🧑‍🦱', '👩‍🦰', '👨‍🦳', '🧔', '👱‍♀️', '👱‍♂️', '🧑‍🦳', '👧', '👦'];
 const FIRST_NAMES = [
