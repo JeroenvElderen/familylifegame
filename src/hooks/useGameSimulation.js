@@ -8,6 +8,7 @@ import {
   createGirlfriendEvent,
   createMarriageEvent,
   createPregnancyPlanEvent,
+  createPartnerCareerEvent,
   createPartnerLifeEvent,
   createPromotionEvent,
 } from '../data/events';
@@ -60,6 +61,7 @@ const createPerson = ({ ageYears = 21, parentId = null, name, joinedDay = 1 } = 
   childrenIds: [],
   partnerName: null,
   partnerAvatar: null,
+  partnerIncomePerSecond: 0,
   hasPartner: false,
   married: false,
   traits: randomTraits(),
@@ -115,7 +117,6 @@ export function useGameSimulation() {
   const [currentEvent, setCurrentEvent] = useState(null);
   const [eventResult, setEventResult] = useState(null);
   const [pendingBabyParentId, setPendingBabyParentId] = useState(null);
-  const [cashPopups, setCashPopups] = useState({});
   const lastEventIdRef = useRef(null);
   const latestStateRef = useRef(state);
   const currentEventRef = useRef(currentEvent);
@@ -132,7 +133,7 @@ export function useGameSimulation() {
   const absoluteDay = state.yearsPassed * DAYS_PER_YEAR + state.day;
   const activePerson = state.family.people[state.family.activePersonId];
   const selectedPerson = state.family.people[state.family.selectedPersonId];
-  const incomePerSecond = (activePerson?.job.salaryPerSecond ?? 0) - (activePerson?.childCostPerSecond ?? 0);
+  const incomePerSecond = (activePerson?.job.salaryPerSecond ?? 0) + (activePerson?.partnerIncomePerSecond ?? 0) - (activePerson?.childCostPerSecond ?? 0);
 
   useEffect(() => {
     if (!state.isRunning) return;
@@ -140,22 +141,10 @@ export function useGameSimulation() {
       setState((prev) => {
         const person = prev.family.people[prev.family.activePersonId];
         if (!person) return prev;
-        const netIncome = person.job.salaryPerSecond - person.childCostPerSecond;
+        const netIncome = person.job.salaryPerSecond + (person.partnerIncomePerSecond ?? 0) - person.childCostPerSecond;
         return { ...prev, money: clampNumber(prev.money + netIncome) };
       });
 
-      const people = latestStateRef.current.family.people;
-      const nextPopups = {};
-      Object.values(people).forEach((person) => {
-        const net = person.job.salaryPerSecond - person.childCostPerSecond;
-        if (!net) return;
-        nextPopups[person.id] = {
-          id: `${person.id}_${Date.now()}`,
-          text: `${net > 0 ? '+' : ''}${net}/s`,
-          type: net > 0 ? 'gain' : 'cost',
-        };
-      });
-      setCashPopups(nextPopups);
     }, TICK_MS);
     return () => clearInterval(id);
   }, [state.isRunning]);
@@ -164,10 +153,17 @@ export function useGameSimulation() {
     if (!state.isRunning) return;
     const id = setInterval(() => {
       setState((prev) => {
-        const person = prev.family.people[prev.family.activePersonId];
-        if (!person) return prev;
         const nextDay = prev.day + 1;
         const wraps = nextDay > DAYS_PER_YEAR;
+        const updatedPeople = Object.fromEntries(
+          Object.entries(prev.family.people).map(([id, person]) => [
+            id,
+            {
+              ...person,
+              ageDays: person.ageDays + 1,
+            },
+          ]),
+        );
 
         return {
           ...prev,
@@ -175,13 +171,7 @@ export function useGameSimulation() {
           yearsPassed: wraps ? prev.yearsPassed + 1 : prev.yearsPassed,
           family: {
             ...prev.family,
-            people: {
-              ...prev.family.people,
-              [person.id]: {
-                ...person,
-                ageDays: person.ageDays + 1,
-              },
-            },
+            people: updatedPeople,
           },
         };
       });
@@ -225,6 +215,13 @@ export function useGameSimulation() {
 
       if (person.hasPartner && Math.random() < 0.2) {
         setCurrentEvent(withTarget(createPartnerLifeEvent(person), person));
+        setState((prev) => ({ ...prev, isRunning: false }));
+        lastEventAtRef.current = Date.now();
+        return;
+      }
+
+      if (person.hasPartner && Math.random() < 0.16) {
+        setCurrentEvent(withTarget(createPartnerCareerEvent(person), person));
         setState((prev) => ({ ...prev, isRunning: false }));
         lastEventAtRef.current = Date.now();
         return;
@@ -290,6 +287,10 @@ export function useGameSimulation() {
         updated.hasPartner = true;
         updated.partnerName = updated.partnerName ?? generatePersonName();
         updated.partnerAvatar = updated.partnerAvatar ?? randomAvatar();
+        if (updated.partnerIncomePerSecond === 0) {
+          const partnerIncomes = [-120, -45, 0, 70, 120, 180, 260];
+          updated.partnerIncomePerSecond = partnerIncomes[Math.floor(Math.random() * partnerIncomes.length)];
+        }
       }
 
       if (effects.losePartner) {
@@ -297,6 +298,7 @@ export function useGameSimulation() {
         updated.married = false;
         updated.partnerName = null;
         updated.partnerAvatar = null;
+        updated.partnerIncomePerSecond = 0;
       }
 
       if (effects.married) {
@@ -316,6 +318,14 @@ export function useGameSimulation() {
           level: 1,
           salaryPerSecond: effects.salaryPerSecond,
         };
+      }
+
+      if (typeof effects.partnerIncomeDelta === 'number') {
+        updated.partnerIncomePerSecond += effects.partnerIncomeDelta;
+      }
+
+      if (typeof effects.partnerIncomeSet === 'number') {
+        updated.partnerIncomePerSecond = effects.partnerIncomeSet;
       }
 
       if (effects.promote) {
@@ -422,7 +432,6 @@ export function useGameSimulation() {
     setCurrentEvent(null);
     setPendingBabyParentId(null);
     setEventResult(null);
-    setCashPopups({});
     lastEventIdRef.current = null;
     lastEventAtRef.current = 0;
   };
@@ -434,11 +443,15 @@ export function useGameSimulation() {
     incomePerSecond,
     currentEvent,
     eventResult,
-    cashPopups,
     chooseOption,
     dismissEventResult: () => setEventResult(null),
     reset,
     setIsRunning: (value) => setState((prev) => ({ ...prev, isRunning: value })),
+    spendMoney: (amount) =>
+      setState((prev) => {
+        if (prev.money < amount) return prev;
+        return { ...prev, money: clampNumber(prev.money - amount) };
+      }),
     selectPerson: (personId) =>
       setState((prev) => ({
         ...prev,

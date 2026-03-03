@@ -292,6 +292,20 @@ export function createPartnerLifeEvent(person) {
   };
 }
 
+export function createPartnerCareerEvent(person) {
+  return {
+    id: 'partner_career_event',
+    title: `${person.partnerName ?? 'Your partner'} has career news`,
+    description: `${person.partnerName ?? 'Your partner'} got a work update that impacts your household income.`,
+    options: [
+      { text: 'Support a better role', effects: { partnerIncomeDelta: 55, happiness: 2, love: 3 } },
+      { text: 'Choose stability for now', effects: { partnerIncomeDelta: 0, iq: 1, love: 1 } },
+      { text: 'Take risky freelance switch', effects: { partnerIncomeSet: [-90, -30, 0, 80, 140][Math.floor(Math.random() * 5)], happiness: -1, iq: 2 } },
+      { text: 'Encourage a break from work', effects: { partnerIncomeSet: 0, happiness: 1, love: 2 } },
+    ],
+  };
+}
+
 export function createBabyNamingEvent(gender) {
   const sourceNames = gender === 'boy' ? BOY_NAMES : GIRL_NAMES;
   const options = [...sourceNames].sort(() => Math.random() - 0.5).slice(0, 4);
