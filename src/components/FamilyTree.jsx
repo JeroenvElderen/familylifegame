@@ -1,6 +1,6 @@
 function Avatar({ person, onSelect, onActivate, isActive }) {
   if (!person) return null;
-  const net = person.job.salaryPerSecond + (person.partnerIncomePerSecond ?? 0) - person.childCostPerSecond;
+  const net = (person.job?.salaryPerSecond ?? 0) + (person.pensionPerSecond ?? 0);
   return (
     <div className={`avatarNode ${isActive ? 'active' : ''}`}>
       <button
@@ -22,6 +22,7 @@ function Avatar({ person, onSelect, onActivate, isActive }) {
 export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson, onActivatePerson }) {
   const children = activePerson.childrenIds.map((id) => family.people[id]).filter(Boolean);
   const parent = activePerson.parentId ? family.people[activePerson.parentId] : null;
+  const spouse = activePerson.spouseId ? family.people[activePerson.spouseId] : null;
 
   return (
     <section className="card wide">
@@ -36,20 +37,12 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
         <div className="treeRow mid">
           <div className="coupleGroup">
             <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive />
-            {activePerson.partnerName ? (
-              <div className="partnerNode">
-                <div className="avatarBubble partner">{activePerson.partnerAvatar ?? '🙂'}</div>
-                <div className="avatarLabel">{activePerson.partnerName}</div>
-                <div className={`avatarIncome ${(activePerson.partnerIncomePerSecond ?? 0) >= 0 ? 'gain' : 'cost'}`}>
-                  {(activePerson.partnerIncomePerSecond ?? 0) >= 0 ? '+' : ''}{activePerson.partnerIncomePerSecond ?? 0}/s
-                </div>
-              </div>
-            ) : null}
-            {activePerson.partnerName ? <div className="partnerLink" /> : null}
+            {spouse ? <Avatar person={spouse} onSelect={onSelectPerson} onActivate={onActivatePerson} /> : null}
+            {spouse ? <div className="partnerLink" /> : null}
           </div>
         </div>
 
-        {activePerson.partnerName ? <div className="treeConnector" /> : null}
+        {spouse ? <div className="treeConnector" /> : null}
 
         <div className="treeRow bottom withBranch">
           {children.length ? (
@@ -81,7 +74,7 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
             <span>IQ: {selectedPerson.stats.iq}</span>
             <span>Job: {selectedPerson.job.title}</span>
             <span>Salary/s: {selectedPerson.job.salaryPerSecond}</span>
-            <span>Partner income/s: {selectedPerson.partnerIncomePerSecond ?? 0}</span>
+            <span>Pension/s: {selectedPerson.pensionPerSecond ?? 0}</span>
           </div>
           <div className="sub">Traits: {selectedPerson.traits.join(', ')}</div>
         </div>

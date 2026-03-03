@@ -9,17 +9,17 @@ const SHOP_SECTIONS = {
   dealership: {
     label: 'Dealership',
     items: [
-      { name: 'Used Hatchback', cost: 800, description: 'Cheap starter car for family errands.' },
-      { name: 'Family SUV', cost: 3200, description: 'Spacious and safe for children.' },
-      { name: 'Electric Sedan', cost: 7800, description: 'Lower running costs with premium comfort.' },
+      { name: 'Used Hatchback', cost: 800, upkeep: 8, recurringType: 'maintenance', assetType: 'cars', description: 'Cheap starter car for family errands.' },
+      { name: 'Family SUV', cost: 3200, upkeep: 18, recurringType: 'maintenance', assetType: 'cars', description: 'Spacious and safe for children.' },
+      { name: 'Electric Sedan', cost: 7800, upkeep: 22, recurringType: 'maintenance', assetType: 'cars', description: 'Lower running costs with premium comfort.' },
     ],
   },
   housing: {
     label: 'Real Estate',
     items: [
-      { name: 'Home Renovation', cost: 2500, description: 'Upgrade kitchen and living room space.' },
-      { name: 'Extra House', cost: 12000, description: 'Buy a second home as an investment.' },
-      { name: 'Vacation Cabin', cost: 9000, description: 'Weekend getaway for better happiness.' },
+      { name: 'Home Renovation', cost: 2500, upkeep: 6, recurringType: 'maintenance', description: 'Upgrade kitchen and living room space.' },
+      { name: 'Extra House', cost: 12000, upkeep: 48, recurringType: 'housing', assetType: 'houses', description: 'Buy a second home as an investment (mortgage+bills).' },
+      { name: 'Vacation Cabin', cost: 9000, upkeep: 33, recurringType: 'housing', assetType: 'houses', description: 'Weekend getaway for better happiness with monthly bills.' },
     ],
   },
   lifestyle: {
@@ -52,6 +52,7 @@ export default function App() {
     setActivePerson,
     spendMoney,
     money,
+    recurringExpensesPerSecond,
   } = useGameSimulation();
   const [shopOpen, setShopOpen] = useState(false);
   const [shopSection, setShopSection] = useState('dealership');
@@ -110,6 +111,7 @@ export default function App() {
           <section className="modal shopModal" onClick={(e) => e.stopPropagation()}>
             <div className="modalTitle">Family Shop</div>
             <div className="sub">Spend money on cars, properties, and lifestyle upgrades.</div>
+            <div className="sub">Recurring bills/s: <b>{Object.values(recurringExpensesPerSecond).reduce((a, b) => a + b, 0)}</b> (includes rent/mortgage, upkeep, insurance)</div>
 
             <div className="shopTabs">
               {Object.entries(SHOP_SECTIONS).map(([key, section]) => (
@@ -130,9 +132,13 @@ export default function App() {
                   <div className="shopItem" key={item.name}>
                     <div>
                       <div className="shopTitle">{item.name}</div>
-                      <div className="shopMeta">{item.description} • ${item.cost}</div>
+                      <div className="shopMeta">{item.description} • ${item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/s` : ''}</div>
                     </div>
-                    <button className="btn tiny" disabled={!canBuy} onClick={() => spendMoney(item.cost)}>
+                    <button
+                      className="btn tiny"
+                      disabled={!canBuy}
+                      onClick={() => spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType)}
+                    >
                       Buy
                     </button>
                   </div>

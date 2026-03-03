@@ -167,10 +167,11 @@ export function createGirlfriendEvent(person) {
 }
 
 export function createMarriageEvent(person) {
+  const partnerLabel = person.partnerName ?? person.spouseName ?? 'their partner';
   return {
     id: 'marriage_event',
     title: 'A serious relationship starts',
-    description: `${person.name} and ${person.partnerName ?? 'their partner'} are discussing marriage.`,
+    description: `${person.name} and ${partnerLabel} are discussing marriage.`,
     options: [
       { text: 'Get married soon', effects: { married: true, hasPartner: true, happiness: 8, love: 8, charm: 2 } },
       { text: 'Wait a little longer', effects: { love: 3, happiness: 2 } },
@@ -232,10 +233,11 @@ export function createBabyEvent() {
 }
 
 export function createAIBabyProposalEvent(person) {
+  const partnerLabel = person.partnerName ?? person.spouseName ?? 'their partner';
   return {
     id: 'ai_baby_proposal',
     title: `${person.name} wants to try for a baby`,
-    description: `${person.name} and ${person.partnerName ?? 'their partner'} feel ready to grow the family. What do you want to do?`,
+    description: `${person.name} and ${partnerLabel} feel ready to grow the family. What do you want to do?`,
     options: [
       { text: 'Try for a child now', effects: { action: 'startPregnancyPlan', happiness: 2, love: 3 } },
       { text: 'Wait and save money', effects: { iq: 2, love: -1, money: 40 } },
@@ -280,10 +282,11 @@ export function createAICareerFocusEvent(person) {
 }
 
 export function createPartnerLifeEvent(person) {
+  const partnerLabel = person.partnerName ?? person.spouseName ?? 'Your partner';
   return {
     id: 'partner_life_event',
-    title: `${person.partnerName ?? 'Your partner'} has a request`,
-    description: `${person.partnerName ?? 'Your partner'} wants to plan something important with ${person.name}.`,
+    title: `${partnerLabel} has a request`,
+    description: `${partnerLabel} wants to plan something important with ${person.name}.`,
     options: buildDynamicOptions([
       { happiness: 3, love: 4, money: -45 },
       { love: 2, iq: 1 },
@@ -293,15 +296,107 @@ export function createPartnerLifeEvent(person) {
 }
 
 export function createPartnerCareerEvent(person) {
+  const partnerLabel = person.partnerName ?? person.spouseName ?? 'Your partner';
   return {
     id: 'partner_career_event',
-    title: `${person.partnerName ?? 'Your partner'} has career news`,
-    description: `${person.partnerName ?? 'Your partner'} got a work update that impacts your household income.`,
+    title: `${partnerLabel} has career news`,
+    description: `${partnerLabel} got a work update that impacts your household income.`,
     options: [
       { text: 'Support a better role', effects: { partnerIncomeDelta: 55, happiness: 2, love: 3 } },
       { text: 'Choose stability for now', effects: { partnerIncomeDelta: 0, iq: 1, love: 1 } },
       { text: 'Take risky freelance switch', effects: { partnerIncomeSet: [-90, -30, 0, 80, 140][Math.floor(Math.random() * 5)], happiness: -1, iq: 2 } },
       { text: 'Encourage a break from work', effects: { partnerIncomeSet: 0, happiness: 1, love: 2 } },
+    ],
+  };
+}
+
+export function createTeenJobEvent(person) {
+  return {
+    id: 'teen_job_event',
+    title: `${person.name} wants a part-time job`,
+    description: 'A teen in your family can start earning while studying.',
+    options: [
+      { text: 'Take a weekend café job', effects: { jobTitle: 'Teen Café Worker', salaryPerSecond: 40, schoolPerformanceDelta: -4, happiness: 1 } },
+      { text: 'Tutor younger kids', effects: { jobTitle: 'Part-time Tutor', salaryPerSecond: 50, schoolPerformanceDelta: 2, iq: 2 } },
+      { text: 'Focus only on studies', effects: { happiness: -1, schoolPerformanceDelta: 5, iq: 1 } },
+    ],
+  };
+}
+
+export function createPetAdoptionEvent(person) {
+  return {
+    id: 'pet_adoption_event',
+    title: `${person.name} asks to adopt a pet`,
+    description: 'Pets raise family happiness but add monthly upkeep.',
+    options: [
+      { text: 'Adopt a dog', effects: { money: -220, petExpenseDelta: 18, happiness: 4, love: 2 } },
+      { text: 'Adopt a cat', effects: { money: -140, petExpenseDelta: 12, happiness: 3, love: 1 } },
+      { text: 'Not now', effects: { happiness: -1 } },
+    ],
+  };
+}
+
+export function createFamilyHealthInsuranceEvent(person) {
+  return {
+    id: 'health_insurance_event',
+    title: `${person.name} reviews insurance plans`,
+    description: 'Pick a family health insurance tier with recurring monthly bills.',
+    options: [
+      { text: 'Basic plan', effects: { insuranceCostSet: 24, happiness: 1 } },
+      { text: 'Premium plan', effects: { insuranceCostSet: 45, happiness: 2, iq: 1 } },
+      { text: 'Stay uninsured', effects: { insuranceCostSet: 0, money: 10, happiness: -1 } },
+    ],
+  };
+}
+
+export function createEmergencyHospitalEvent(person) {
+  return {
+    id: 'hospital_event',
+    title: `Emergency at the hospital for ${person.name}`,
+    description: 'You must choose quickly. Your insurance and decision both matter.',
+    options: [
+      { text: 'Private emergency care', effects: { money: -520, happiness: -2, love: 2 } },
+      { text: 'Public hospital queue', effects: { money: -180, happiness: -4 } },
+      { text: 'Call insured family hotline first', effects: { money: -90, iq: 2, happiness: -1 } },
+    ],
+  };
+}
+
+export function createRetirementPlanningEvent(person) {
+  return {
+    id: 'retirement_planning_event',
+    title: `${person.name} starts retirement planning`,
+    description: 'Contribute now for later pension payouts.',
+    options: [
+      { text: 'High pension contribution', effects: { money: -450, retirementContribution: 15, iq: 2 } },
+      { text: 'Small steady contribution', effects: { money: -180, retirementContribution: 6, happiness: 1 } },
+      { text: 'Delay retirement saving', effects: { money: 40, happiness: -1 } },
+    ],
+  };
+}
+
+export function createSchoolPerformanceEvent(person) {
+  return {
+    id: 'school_performance_event',
+    title: `${person.name}'s report card is in`,
+    description: 'Family support can shift school performance over time.',
+    options: [
+      { text: 'Hire tutoring support', effects: { money: -120, schoolPerformanceDelta: 10, iq: 1 } },
+      { text: 'Set study routine at home', effects: { schoolPerformanceDelta: 6, happiness: -1 } },
+      { text: 'No extra changes', effects: { schoolPerformanceDelta: -3 } },
+    ],
+  };
+}
+
+export function createUniversityAdmissionsEvent(person) {
+  return {
+    id: 'university_admission_event',
+    title: `${person.name} gets university offers`,
+    description: 'Choose between tuition cost and career upside.',
+    options: [
+      { text: 'Top university (high tuition)', effects: { startUniversity: true, universityCostDelta: 55, iq: 5, money: -400 } },
+      { text: 'Community college', effects: { startUniversity: true, universityCostDelta: 24, iq: 2, money: -120 } },
+      { text: 'Skip university', effects: { happiness: 1, iq: -1 } },
     ],
   };
 }
