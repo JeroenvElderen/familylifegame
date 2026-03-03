@@ -9,25 +9,33 @@ const SHOP_SECTIONS = {
   dealership: {
     label: 'Dealership',
     items: [
-      { name: 'Used Hatchback', cost: 800, upkeep: 8, recurringType: 'maintenance', assetType: 'cars', description: 'Cheap starter car for family errands.' },
-      { name: 'Family SUV', cost: 3200, upkeep: 18, recurringType: 'maintenance', assetType: 'cars', description: 'Spacious and safe for children.' },
-      { name: 'Electric Sedan', cost: 7800, upkeep: 22, recurringType: 'maintenance', assetType: 'cars', description: 'Lower running costs with premium comfort.' },
+      { name: 'Used Hatchback', cost: 6500, upkeep: 45, recurringType: 'maintenance', assetType: 'cars', description: 'Older second-hand city car (Irish used market).' },
+      { name: 'Family SUV', cost: 34000, upkeep: 120, recurringType: 'maintenance', assetType: 'cars', description: 'Spacious SUV with realistic loan + running costs.' },
+      { name: 'Electric Sedan', cost: 47000, upkeep: 98, recurringType: 'maintenance', assetType: 'cars', description: 'Higher upfront cost, lower fuel spend.' },
     ],
   },
   housing: {
     label: 'Real Estate',
     items: [
-      { name: 'Home Renovation', cost: 2500, upkeep: 6, recurringType: 'maintenance', description: 'Upgrade kitchen and living room space.' },
-      { name: 'Extra House', cost: 12000, upkeep: 48, recurringType: 'housing', assetType: 'houses', description: 'Buy a second home as an investment (mortgage+bills).' },
-      { name: 'Vacation Cabin', cost: 9000, upkeep: 33, recurringType: 'housing', assetType: 'houses', description: 'Weekend getaway for better happiness with monthly bills.' },
+      { name: 'Home Renovation', cost: 28000, upkeep: 42, recurringType: 'maintenance', description: 'Major kitchen + insulation upgrade.' },
+      { name: 'Extra House', cost: 290000, upkeep: 760, recurringType: 'housing', assetType: 'houses', description: 'Second property in current Irish market conditions.' },
+      { name: 'Vacation Cabin', cost: 210000, upkeep: 520, recurringType: 'housing', assetType: 'houses', description: 'Holiday home with realistic upkeep and taxes.' },
+    ],
+  },
+  renovation: {
+    label: 'Renovation (Under Renovation)',
+    items: [
+      { name: 'New Furniture Package', cost: 14000, description: 'Boosts family comfort and monthly happiness.', bonusType: 'homeComfort', bonusValue: 2 },
+      { name: 'Child Room Upgrade', cost: 9000, description: 'Improves children mood and lowers stress at home.', bonusType: 'homeComfort', bonusValue: 1 },
+      { name: 'Energy Smart Setup', cost: 11000, description: 'Smarter heating/lights reduces long-term weather utility spikes.', bonusType: 'weatherResilience', bonusValue: 0.08 },
     ],
   },
   lifestyle: {
     label: 'Lifestyle',
     items: [
-      { name: 'Family Vacation', cost: 1200, description: 'Take everyone on a relaxing break.' },
-      { name: 'Home Gym', cost: 1600, description: 'Improve health and daily routine.' },
-      { name: 'Premium Childcare', cost: 2200, description: 'Support children with better care.' },
+      { name: 'Family Vacation', cost: 3400, description: 'Take everyone on a realistic short break.' },
+      { name: 'Home Gym', cost: 2600, description: 'Improve health and daily routine.' },
+      { name: 'Premium Childcare', cost: 14500, description: 'Support children with better quality care.' },
     ],
   },
 };
@@ -49,10 +57,12 @@ export default function App() {
     activePerson,
     selectedPerson,
     selectPerson,
-    setActivePerson,
     spendMoney,
     money,
     recurringExpensesPerSecond,
+    weather,
+    city,
+    monthlySummary,
   } = useGameSimulation();
   const [shopOpen, setShopOpen] = useState(false);
   const [shopSection, setShopSection] = useState('dealership');
@@ -102,8 +112,27 @@ export default function App() {
           activePerson={activePerson}
           selectedPerson={selectedPerson}
           onSelectPerson={selectPerson}
-          onActivatePerson={setActivePerson}
         />
+
+        <section className="card">
+          <div className="label">Procedural City Map</div>
+          <div className="sub">District: <b>{city.name}</b></div>
+          <div className="cityGrid">
+            {city.amenities.map((amenity) => (
+              <div key={amenity.name} className="cityTile">
+                <div className="shopTitle">{amenity.name}</div>
+                <div className="shopMeta">{amenity.effect}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="label">Weather & Economy</div>
+          <div className="value" style={{ fontSize: 22 }}>{weather.month} • {weather.type}</div>
+          <div className="sub">Cost pressure: <b>{Math.round(weather.costMultiplier * 100)}%</b> of base household costs this month.</div>
+          <div className="sub">Last monthly update: {monthlySummary}</div>
+        </section>
       </main>
 
       {shopOpen ? (
@@ -111,7 +140,7 @@ export default function App() {
           <section className="modal shopModal" onClick={(e) => e.stopPropagation()}>
             <div className="modalTitle">Family Shop</div>
             <div className="sub">Spend money on cars, properties, and lifestyle upgrades.</div>
-            <div className="sub">Recurring bills/s: <b>{Object.values(recurringExpensesPerSecond).reduce((a, b) => a + b, 0)}</b> (includes rent/mortgage, upkeep, insurance)</div>
+            <div className="sub">Recurring bills/s: <b>{Object.values(recurringExpensesPerSecond).reduce((a, b) => a + b, 0)}</b> (includes rent/mortgage, upkeep, insurance, weather pressure)</div>
 
             <div className="shopTabs">
               {Object.entries(SHOP_SECTIONS).map(([key, section]) => (
@@ -132,12 +161,12 @@ export default function App() {
                   <div className="shopItem" key={item.name}>
                     <div>
                       <div className="shopTitle">{item.name}</div>
-                      <div className="shopMeta">{item.description} • ${item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/s` : ''}</div>
+                      <div className="shopMeta">{item.description} • €{item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/s` : ''}</div>
                     </div>
                     <button
                       className="btn tiny"
                       disabled={!canBuy}
-                      onClick={() => spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType)}
+                      onClick={() => spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType, item.bonusType, item.bonusValue)}
                     >
                       Buy
                     </button>

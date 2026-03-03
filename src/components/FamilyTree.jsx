@@ -1,15 +1,9 @@
-function Avatar({ person, onSelect, onActivate, isActive }) {
+function Avatar({ person, onSelect, isActive, isSelected }) {
   if (!person) return null;
   const net = (person.job?.salaryPerSecond ?? 0) + (person.pensionPerSecond ?? 0);
   return (
-    <div className={`avatarNode ${isActive ? 'active' : ''}`}>
-      <button
-        className="avatarBubble clickable"
-        onClick={() => {
-          onSelect(person.id);
-          onActivate(person.id);
-        }}
-      >
+    <div className={`avatarNode ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}`}>
+      <button className="avatarBubble clickable" onClick={() => onSelect(person.id)}>
         {person.avatar}
       </button>
       <div className="avatarLabel">{person.name}</div>
@@ -19,47 +13,73 @@ function Avatar({ person, onSelect, onActivate, isActive }) {
   );
 }
 
-export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson, onActivatePerson }) {
-  const children = activePerson.childrenIds.map((id) => family.people[id]).filter(Boolean);
-  const parent = activePerson.parentId ? family.people[activePerson.parentId] : null;
-  const spouse = activePerson.spouseId ? family.people[activePerson.spouseId] : null;
+function FamilyBranch({ person, family, activePersonId, selectedPersonId, onSelectPerson, level = 0 }) {
+  if (!person) return null;
+  const spouse = person.spouseId ? family.people[person.spouseId] : null;
+  const children = person.childrenIds.map((id) => family.people[id]).filter(Boolean);
+
+  return (
+    <div className={`branch level-${level}`}>
+      <div className="treeRow mid">
+        <div className="coupleGroup">
+          <Avatar person={person} onSelect={onSelectPerson} isActive={person.id === activePersonId} isSelected={person.id === selectedPersonId} />
+          {spouse ? <Avatar person={spouse} onSelect={onSelectPerson} isActive={spouse.id === activePersonId} isSelected={spouse.id === selectedPersonId} /> : null}
+          {spouse ? <div className="partnerLink" /> : null}
+        </div>
+      </div>
+
+      {children.length ? (
+        <>
+          <div className="treeConnector" />
+          <div className="treeRow bottom withBranch">
+            <div className="childrenBranch" />
+            {children.map((child) => (
+              <div key={child.id} className="childSlot">
+                <div className="childDrop" style={{ opacity: 1 }} />
+                <FamilyBranch
+                  person={child}
+                  family={family}
+                  activePersonId={activePersonId}
+                  selectedPersonId={selectedPersonId}
+                  onSelectPerson={onSelectPerson}
+                  level={level + 1}
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson }) {
+  const findRoot = () => {
+    let node = activePerson;
+    const seen = new Set();
+    while (node?.parentId && !seen.has(node.id)) {
+      seen.add(node.id);
+      node = family.people[node.parentId] ?? node;
+    }
+    return node;
+  };
+
+  const rootPerson = findRoot();
 
   return (
     <section className="card wide">
       <div className="label">Family Tree</div>
+      <div className="sub">Click a family member to inspect them. Tree layout stays fixed and only expands with new generations.</div>
       <div className="treeWrap">
-        {parent ? (
-          <div className="treeRow top">
-            <Avatar person={parent} onSelect={onSelectPerson} onActivate={onActivatePerson} />
-          </div>
+        {rootPerson ? (
+          <FamilyBranch
+            person={rootPerson}
+            family={family}
+            activePersonId={activePerson.id}
+            selectedPersonId={selectedPerson?.id}
+            onSelectPerson={onSelectPerson}
+          />
         ) : null}
-
-        <div className="treeRow mid">
-          <div className="coupleGroup">
-            <Avatar person={activePerson} onSelect={onSelectPerson} onActivate={onActivatePerson} isActive />
-            {spouse ? <Avatar person={spouse} onSelect={onSelectPerson} onActivate={onActivatePerson} /> : null}
-            {spouse ? <div className="partnerLink" /> : null}
-          </div>
-        </div>
-
-        {spouse ? <div className="treeConnector" /> : null}
-
-        <div className="treeRow bottom withBranch">
-          {children.length ? (
-            <>
-              <div className="childrenBranch" />
-              {children.map((child, index) => (
-                <div key={child.id} className="childSlot">
-                  <div className="childDrop" style={{ opacity: children.length > 1 ? 1 : 0 }} />
-                  <Avatar person={child} onSelect={onSelectPerson} onActivate={onActivatePerson} />
-                  {index < children.length - 1 ? <div className="childSpacer" /> : null}
-                </div>
-              ))}
-            </>
-          ) : (
-            <div className="emptyChild">No children yet</div>
-          )}
-        </div>
       </div>
       
       {selectedPerson ? (

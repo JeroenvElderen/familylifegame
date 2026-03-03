@@ -37,7 +37,7 @@ import {
 let personIdCounter = 1;
 
 const randomTraits = () => {
-  const pool = ['Romantic', 'Charming', 'Genius', 'Triplet Luck', 'Ambitious', 'Careful with money'];
+  const pool = ['Romantic', 'Charming', 'Genius', 'Triplet Luck', 'Ambitious', 'Careful with money', 'Fertile'];
   return [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
 };
 
@@ -45,6 +45,59 @@ const withTarget = (event, person) => ({ ...event, targetPersonId: person.id, ta
 
 const SCHOOL_DAYS_PER_STAGE = SCHOOL_STAGE_YEARS * DAYS_PER_YEAR;
 const SCHOOL_START_AGE = 6;
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEATHER_TYPES = [
+  { type: 'Mild Rain', min: 1.02, max: 1.08 },
+  { type: 'Cold Snap', min: 1.08, max: 1.2 },
+  { type: 'Storm Season', min: 1.06, max: 1.16 },
+  { type: 'Clear Skies', min: 0.95, max: 1.02 },
+  { type: 'Heatwave', min: 1.01, max: 1.1 },
+];
+const CITY_AMENITIES = ['Hospital', 'School', 'Shopping Centre', 'Public Park', 'Train Station', 'Creche', 'Gym', 'Library'];
+
+const randomWeather = (monthIdx) => {
+  const profile = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
+  return {
+    month: MONTH_NAMES[monthIdx % 12],
+    type: profile.type,
+    costMultiplier: Number((profile.min + Math.random() * (profile.max - profile.min)).toFixed(2)),
+  };
+};
+
+const generateCity = () => {
+  const namePrefixes = ['North', 'South', 'River', 'Green', 'Liffey', 'Oak'];
+  const nameSuffixes = ['Heights', 'Cross', 'View', 'Harbour', 'Point', 'Vale'];
+  const chosen = [...CITY_AMENITIES].sort(() => Math.random() - 0.5).slice(0, 6);
+  return {
+    name: `${namePrefixes[Math.floor(Math.random() * namePrefixes.length)]} ${nameSuffixes[Math.floor(Math.random() * nameSuffixes.length)]}`,
+    amenities: chosen.map((name) => ({
+      name,
+      effect: name === 'Hospital' ? 'Healthcare costs slightly lower' : name === 'School' ? 'Education outcomes improve' : 'Family quality-of-life boost',
+    })),
+  };
+};
+
+const fertilityScore = (person, spouse) => {
+  const traitScore = [person, spouse].filter(Boolean).flatMap((p) => p.traits).reduce((acc, trait) => {
+    if (trait === 'Fertile') return acc + 0.22;
+    if (trait === 'Triplet Luck') return acc + 0.16;
+    return acc;
+  }, 0);
+  const loveScore = (((person?.stats.love ?? 40) + (spouse?.stats.love ?? 40)) / 200) * 0.16;
+  return Math.min(0.58, traitScore + loveScore);
+};
+
+const decideBirthCount = (fertility) => {
+  const quadChance = 0.002 + fertility * 0.025;
+  const tripletChance = 0.01 + fertility * 0.08;
+  const twinChance = 0.06 + fertility * 0.2;
+  const roll = Math.random();
+  if (roll < quadChance) return 4;
+  if (roll < quadChance + tripletChance) return 3;
+  if (roll < quadChance + tripletChance + twinChance) return 2;
+  return 1;
+};
 
 const isSchoolCompleted = (person, currentAbsoluteDay) => {
   if (!person.education || person.education.completed) return true;
@@ -99,13 +152,14 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
 const initialState = () => {
   const founder = createPerson({ ageYears: 21, joinedDay: 1 });
   return {
-    money: 1000,
+    money: 25000,
     isRunning: false,
     day: 1,
     yearsPassed: 0,
     recurringExpensesPerSecond: {
-      housing: 28,
-      maintenance: 0,
+      housing: 340,
+      maintenance: 35,
+      weather: 0,
       children: 0,
       pets: 0,
       insurance: 0,
@@ -119,6 +173,13 @@ const initialState = () => {
       pets: 0,
       insurancePlan: 'none',
     },
+    modifiers: {
+      homeComfort: 0,
+      weatherResilience: 0,
+    },
+    city: generateCity(),
+    weather: randomWeather(0),
+    monthlySummary: 'No month finished yet',
     family: {
       activePersonId: founder.id,
       selectedPersonId: null,
@@ -198,13 +259,31 @@ export function useGameSimulation() {
           }),
         );
 
+        const isMonthEnd = nextDay % 30 === 0;
+        const monthIdx = Math.floor(nextDay / 30);
+        const nextWeather = isMonthEnd ? randomWeather(monthIdx) : prev.weather;
+        const weatherCost = isMonthEnd
+          ? Math.max(0, Math.round(prev.recurringExpensesPerSecond.housing * Math.max(0, (nextWeather.costMultiplier - prev.modifiers.weatherResilience - 1))))
+          : prev.recurringExpensesPerSecond.weather;
+
+        const comfortBoost = isMonthEnd ? prev.modifiers.homeComfort : 0;
+        const monthPeople = isMonthEnd
+          ? Object.fromEntries(Object.entries(updatedPeople).map(([id, person]) => [id, { ...person, stats: { ...person.stats, happiness: person.stats.happiness + comfortBoost } }]))
+          : updatedPeople;
+
         return {
           ...prev,
           day: wraps ? 1 : nextDay,
           yearsPassed: wraps ? prev.yearsPassed + 1 : prev.yearsPassed,
+          weather: nextWeather,
+          monthlySummary: isMonthEnd ? `${nextWeather.month}: ${nextWeather.type} adjusted weather costs by ${weatherCost}/s` : prev.monthlySummary,
+          recurringExpensesPerSecond: {
+            ...prev.recurringExpensesPerSecond,
+            weather: weatherCost,
+          },
           family: {
             ...prev.family,
-            people: updatedPeople,
+            people: monthPeople,
           },
         };
       });
@@ -323,7 +402,7 @@ export function useGameSimulation() {
         return;
       }
 
-      if (person.hasPartner && age >= 19 && person.stats.happiness > 45 && person.stats.love > 42 && Math.random() < 0.25) {
+      if (person.hasPartner && age >= 21 && age <= 40 && person.stats.happiness > 40 && person.stats.love > 38 && Math.random() < 0.42) {
         setCurrentEvent(withTarget(createAIBabyProposalEvent(person), person));
         setState((prev) => ({ ...prev, isRunning: false }));
         lastEventAtRef.current = Date.now();
@@ -497,7 +576,11 @@ export function useGameSimulation() {
       const planType = effects.planType ?? 'doctor';
       const successChance = planType === 'budget' ? 0.7 : 0.92;
       if (Math.random() <= successChance) {
-        setPendingBabyParentId(targetPersonId ?? state.family.activePersonId);
+        const parentId = targetPersonId ?? state.family.activePersonId;
+        const parent = state.family.people[parentId];
+        const spouse = parent?.spouseId ? state.family.people[parent.spouseId] : null;
+        const birthCount = decideBirthCount(fertilityScore(parent, spouse));
+        setPendingBabyParentId(`${parentId}:${birthCount}`);
         const babyGender = Math.random() < 0.5 ? 'boy' : 'girl';
         return { updatedPerson: nextPerson, nextEvent: createBabyNamingEvent(babyGender) };
       }
@@ -510,32 +593,37 @@ export function useGameSimulation() {
 
     if (effects.action === 'nameBaby' && pendingBabyParentId) {
       setState((prev) => {
-        const parent = prev.family.people[pendingBabyParentId];
+        const [parentId, countRaw] = String(pendingBabyParentId).split(':');
+        const babyCount = Math.max(1, Number(countRaw) || 1);
+        const parent = prev.family.people[parentId];
         if (!parent) return prev;
-        const newBaby = createPerson({ ageYears: 0, parentId: parent.id, name: effects.babyName, joinedDay: absoluteDay });
-        newBaby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0 };
-        newBaby.education = {
-          completed: false,
-          schoolStartDay: absoluteDay + SCHOOL_START_AGE * DAYS_PER_YEAR,
-          performance: 55,
-          inUniversity: false,
-        };
+        const babies = Array.from({ length: babyCount }, (_, idx) => {
+          const baby = createPerson({ ageYears: 0, parentId: parent.id, name: babyCount === 1 ? effects.babyName : `${effects.babyName} ${idx + 1}`, joinedDay: absoluteDay });
+          baby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0 };
+          baby.education = {
+            completed: false,
+            schoolStartDay: absoluteDay + SCHOOL_START_AGE * DAYS_PER_YEAR,
+            performance: 55,
+            inUniversity: false,
+          };
+          return baby;
+        });
         
         const parentUpdated = {
           ...parent,
-          childrenIds: [...parent.childrenIds, newBaby.id],
+          childrenIds: [...parent.childrenIds, ...babies.map((baby) => baby.id)],
         };
 
         const nextPeople = {
           ...prev.family.people,
           [parentUpdated.id]: parentUpdated,
-          [newBaby.id]: newBaby,
+          ...Object.fromEntries(babies.map((baby) => [baby.id, baby])),
         };
 
         if (parent.spouseId && nextPeople[parent.spouseId]) {
           nextPeople[parent.spouseId] = {
             ...nextPeople[parent.spouseId],
-            childrenIds: [...nextPeople[parent.spouseId].childrenIds, newBaby.id],
+            childrenIds: [...nextPeople[parent.spouseId].childrenIds, ...babies.map((baby) => baby.id)],
           };
         }
 
@@ -543,7 +631,7 @@ export function useGameSimulation() {
           ...prev,
           recurringExpensesPerSecond: {
             ...prev.recurringExpensesPerSecond,
-            children: prev.recurringExpensesPerSecond.children + 60,
+            children: prev.recurringExpensesPerSecond.children + (120 * babyCount),
           },
           family: {
             ...prev.family,
@@ -588,7 +676,7 @@ export function useGameSimulation() {
     lastEventAtRef.current = 0;
   };
 
-  const spendMoney = (amount, recurringType = null, recurringDelta = 0, assetType = null) =>
+  const spendMoney = (amount, recurringType = null, recurringDelta = 0, assetType = null, bonusType = null, bonusValue = 0) =>
     setState((prev) => {
       if (prev.money < amount) return prev;
       const next = { ...prev, money: clampNumber(prev.money - amount) };
@@ -602,6 +690,12 @@ export function useGameSimulation() {
         next.assets = {
           ...prev.assets,
           [assetType]: (prev.assets[assetType] ?? 0) + 1,
+        };
+      }
+      if (bonusType) {
+        next.modifiers = {
+          ...prev.modifiers,
+          [bonusType]: Number(((prev.modifiers[bonusType] ?? 0) + bonusValue).toFixed(2)),
         };
       }
       return next;
