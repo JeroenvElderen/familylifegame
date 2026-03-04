@@ -46,7 +46,6 @@ const withTarget = (event, person) => ({ ...event, targetPersonId: person.id, ta
 const SCHOOL_DAYS_PER_STAGE = SCHOOL_STAGE_YEARS * DAYS_PER_YEAR;
 const SCHOOL_START_AGE = 6;
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEATHER_TYPES = [
   { type: 'Mild Rain', min: 1.02, max: 1.08 },
   { type: 'Cold Snap', min: 1.08, max: 1.2 },
@@ -56,10 +55,10 @@ const WEATHER_TYPES = [
 ];
 const CITY_AMENITIES = ['Hospital', 'School', 'Shopping Centre', 'Public Park', 'Train Station', 'Creche', 'Gym', 'Library'];
 
-const randomWeather = (monthIdx) => {
+const randomWeather = (year) => {
   const profile = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
   return {
-    month: MONTH_NAMES[monthIdx % 12],
+    year: `Year ${year}`,
     type: profile.type,
     costMultiplier: Number((profile.min + Math.random() * (profile.max - profile.min)).toFixed(2)),
   };
@@ -74,6 +73,9 @@ const generateCity = () => {
     amenities: chosen.map((name) => ({
       name,
       effect: name === 'Hospital' ? 'Healthcare costs slightly lower' : name === 'School' ? 'Education outcomes improve' : 'Family quality-of-life boost',
+      cost: 100000 + Math.floor(Math.random() * 260000),
+      incomePerSecond: 220 + Math.floor(Math.random() * 260),
+      ownerId: null,
     })),
   };
 };
@@ -112,10 +114,12 @@ const isSchoolCompleted = (person, currentAbsoluteDay) => {
 };
 
 const sumRecurring = (recurring) => Object.values(recurring).reduce((acc, value) => acc + value, 0);
+const clampStat = (value) => Math.max(0, Math.min(100, Math.round(value ?? 0)));
 
 const householdIncome = (people) => Object.values(people).reduce((acc, person) => acc + (person.job?.salaryPerSecond ?? 0) + (person.pensionPerSecond ?? 0), 0);
 
-const PROGRESSION_PER_MONTH = 8;
+const PROGRESSION_PER_YEAR_MAX = 5;
+const TALENTS = ['Music', 'Sports', 'Coding'];
 
 const nextUniqueBabyName = (usedNames) => {
   let candidate = generatePersonName();
@@ -159,6 +163,8 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
     love: 40,
     charm: 45,
     iq: 50,
+    socialReputation: 20,
+    burnout: 15,
   },
   job: {
     employed: true,
@@ -186,6 +192,7 @@ const initialState = () => {
     pets: 0,
     insurance: 0,
     university: 0,
+    debt: 0,
   };
   const minFounderIncome = sumRecurring(baselineExpenses) + 20;
   founder.job.salaryPerSecond = Math.max(founder.job.salaryPerSecond, minFounderIncome);
@@ -202,14 +209,20 @@ const initialState = () => {
       rentActive: true,
       pets: 0,
       insurancePlan: 'none',
+      businessesOwned: 0,
     },
     modifiers: {
       homeComfort: 0,
       weatherResilience: 0,
     },
     city: generateCity(),
-    weather: randomWeather(0),
-    monthlySummary: 'No month finished yet',
+    weather: randomWeather(1),
+    monthlySummary: 'No year finished yet',
+    loans: {
+      principal: 0,
+      annualInterestRate: 0.07,
+      paymentPerSecond: 0,
+    },
     family: {
       activePersonId: founder.id,
       selectedPersonId: null,
@@ -240,6 +253,11 @@ export function useGameSimulation() {
   const latestStateRef = useRef(state);
   const currentEventRef = useRef(currentEvent);
   const lastEventAtRef = useRef(0);
+  const pauseForEvent = (event, person) => {
+    setCurrentEvent(withTarget(event, person));
+    setState((prev) => ({ ...prev, isRunning: false }));
+    lastEventAtRef.current = Date.now();
+  };
 
   useEffect(() => {
     latestStateRef.current = state;
@@ -258,10 +276,23 @@ export function useGameSimulation() {
   useEffect(() => {
     if (!state.isRunning) return;
     const id = setInterval(() => {
-      setState((prev) => ({
-        ...prev,
-        money: clampNumber(prev.money + (householdIncome(prev.family.people) - sumRecurring(prev.recurringExpensesPerSecond))),
-      }));
+      setState((prev) => {
+        const nextMoney = clampNumber(prev.money + (householdIncome(prev.family.people) - sumRecurring(prev.recurringExpensesPerSecond)));
+        const repayment = Math.min(prev.loans.paymentPerSecond, prev.loans.principal);
+        return {
+          ...prev,
+          money: nextMoney,
+          loans: {
+            ...prev.loans,
+            principal: Number((prev.loans.principal - repayment).toFixed(2)),
+            paymentPerSecond: prev.loans.principal - repayment <= 0 ? 0 : prev.loans.paymentPerSecond,
+          },
+          recurringExpensesPerSecond: {
+            ...prev.recurringExpensesPerSecond,
+            debt: prev.loans.principal - repayment <= 0 ? 0 : prev.recurringExpensesPerSecond.debt,
+          },
+        };
+      });
     }, TICK_MS);
     return () => clearInterval(id);
   }, [state.isRunning]);
@@ -289,26 +320,41 @@ export function useGameSimulation() {
           }),
         );
 
-        const isMonthEnd = nextDay % 30 === 0;
-        const monthIdx = Math.floor(nextDay / 30);
-        const nextWeather = isMonthEnd ? randomWeather(monthIdx) : prev.weather;
-        const weatherCost = isMonthEnd
+        const isYearEnd = wraps;
+        const nextWeather = isYearEnd ? randomWeather(prev.yearsPassed + 1) : prev.weather;
+        const weatherCost = isYearEnd
           ? Math.max(0, Math.round(prev.recurringExpensesPerSecond.housing * Math.max(0, (nextWeather.costMultiplier - prev.modifiers.weatherResilience - 1))))
           : prev.recurringExpensesPerSecond.weather;
 
-        const comfortBoost = isMonthEnd ? prev.modifiers.homeComfort : 0;
-        const monthPeople = isMonthEnd
+        const comfortBoost = isYearEnd ? prev.modifiers.homeComfort : 0;
+        const yearlyUpdates = { talentDiscoveries: [], crimeSummary: null };
+        const yearPeople = isYearEnd
           ? Object.fromEntries(Object.entries(updatedPeople).map(([id, person]) => {
             const hasJobTrack = person.job?.employed && person.job.level > 0 && person.job.title !== 'Retired';
-            const nextProficiency = hasJobTrack ? (person.job.proficiency ?? 0) + PROGRESSION_PER_MONTH : (person.job.proficiency ?? 0);
+            const proficiencyGain = hasJobTrack ? Math.min(PROGRESSION_PER_YEAR_MAX, Math.round(Math.random() * PROGRESSION_PER_YEAR_MAX)) : 0;
+            const nextProficiency = hasJobTrack ? (person.job.proficiency ?? 0) + proficiencyGain : (person.job.proficiency ?? 0);
             const earnedPromotion = hasJobTrack && nextProficiency >= 100;
+            const burnoutDelta = hasJobTrack ? 8 : -12;
+            const nextBurnout = clampStat((person.stats.burnout ?? 0) + burnoutDelta);
+            const socialShift = Math.round((Math.random() - 0.4) * 8);
+            const nextReputation = clampStat((person.stats.socialReputation ?? 20) + socialShift);
+            const ageYears = Math.floor(person.ageDays / DAYS_PER_YEAR);
+            const canDiscoverTalent = !!person.parentId && ageYears >= 6 && ageYears <= 16 && !person.talent && Math.random() < 0.32;
+            const discoveredTalent = canDiscoverTalent ? TALENTS[Math.floor(Math.random() * TALENTS.length)] : null;
+            if (discoveredTalent) {
+              yearlyUpdates.talentDiscoveries.push(`${person.name} discovered talent in ${discoveredTalent}`);
+            }
             return [
               id,
               {
                 ...person,
+                talent: person.talent ?? discoveredTalent,
                 stats: {
                   ...person.stats,
-                  happiness: person.stats.happiness + comfortBoost,
+                  happiness: clampStat(person.stats.happiness + comfortBoost - (nextBurnout > 75 ? 6 : 0) + (discoveredTalent ? 5 : 0)),
+                  iq: clampStat(person.stats.iq + (discoveredTalent === 'Coding' ? 4 : 0)),
+                  burnout: nextBurnout,
+                  socialReputation: nextReputation,
                 },
                 job: hasJobTrack
                   ? {
@@ -320,24 +366,41 @@ export function useGameSimulation() {
                     proficiency: earnedPromotion ? 0 : nextProficiency,
                   }
                   : person.job,
+                traits: discoveredTalent ? [...person.traits, `${discoveredTalent} Talent`] : person.traits,
               },
             ];
           }))
           : updatedPeople;
+
+        const crimeRoll = isYearEnd ? Math.random() : 1;
+        const crimeCost = crimeRoll < 0.2 ? 2800 : 0;
+        yearlyUpdates.crimeSummary = crimeCost > 0 ? 'Crime wave increased household costs this year.' : 'Neighborhood remained safe this year.';
+
+        const nextPrincipal = isYearEnd && prev.loans.principal > 0
+          ? Number((prev.loans.principal * (1 + prev.loans.annualInterestRate)).toFixed(2))
+          : prev.loans.principal;
 
         return {
           ...prev,
           day: wraps ? 1 : nextDay,
           yearsPassed: wraps ? prev.yearsPassed + 1 : prev.yearsPassed,
           weather: nextWeather,
-          monthlySummary: isMonthEnd ? `${nextWeather.month}: ${nextWeather.type} adjusted weather costs by ${weatherCost}/s` : prev.monthlySummary,
+          monthlySummary: isYearEnd
+            ? `${nextWeather.year}: ${nextWeather.type}. Weather cost ${weatherCost}/s. ${yearlyUpdates.crimeSummary} ${yearlyUpdates.talentDiscoveries.join(' • ')}`
+            : prev.monthlySummary,
           recurringExpensesPerSecond: {
             ...prev.recurringExpensesPerSecond,
             weather: weatherCost,
+            maintenance: prev.recurringExpensesPerSecond.maintenance + (crimeCost > 0 ? 8 : 0),
+            debt: prev.loans.paymentPerSecond,
+          },
+          loans: {
+            ...prev.loans,
+            principal: nextPrincipal,
           },
           family: {
             ...prev.family,
-            people: monthPeople,
+            people: yearPeople,
           },
         };
       });
@@ -364,118 +427,86 @@ export function useGameSimulation() {
       const age = Math.floor(person.ageDays / DAYS_PER_YEAR);
 
       if (!person.hasPartner && age >= 12 && Math.random() < 0.25) {
-        setCurrentEvent(withTarget(createGirlfriendEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createGirlfriendEvent(person), person);
         return;
       }
 
       if (person.hasPartner && !person.married && age >= 18 && Math.random() < 0.2) {
-        setCurrentEvent(withTarget(createMarriageEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createMarriageEvent(person), person);
         return;
       }
 
       const schoolCompleted = isSchoolCompleted(person, currentAbsoluteDay);
 
       if (age >= 13 && age <= 19 && person.parentId && !person.job.employed && Math.random() < 0.22) {
-        setCurrentEvent(withTarget(createTeenJobEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createTeenJobEvent(person), person);
         return;
       }
 
       if (person.parentId && age >= 6 && age <= 18 && Math.random() < 0.2) {
-        setCurrentEvent(withTarget(createSchoolPerformanceEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createSchoolPerformanceEvent(person), person);
         return;
       }
 
       if (person.parentId && age >= 17 && age <= 22 && schoolCompleted && !person.education.inUniversity && Math.random() < 0.2) {
-        setCurrentEvent(withTarget(createUniversityAdmissionsEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createUniversityAdmissionsEvent(person), person);
         return;
       }
 
       if (Math.random() < 0.14) {
-        setCurrentEvent(withTarget(createPetAdoptionEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createPetAdoptionEvent(person), person);
         return;
       }
 
       if (Math.random() < 0.16) {
-        setCurrentEvent(withTarget(createFamilyHealthInsuranceEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createFamilyHealthInsuranceEvent(person), person);
         return;
       }
 
       if (Math.random() < 0.12) {
-        setCurrentEvent(withTarget(createEmergencyHospitalEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createEmergencyHospitalEvent(person), person);
         return;
       }
 
       if (age >= 55 && Math.random() < 0.18) {
-        setCurrentEvent(withTarget(createRetirementPlanningEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createRetirementPlanningEvent(person), person);
         return;
       }
 
       if (person.hasPartner && Math.random() < 0.2) {
-        setCurrentEvent(withTarget(createPartnerLifeEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createPartnerLifeEvent(person), person);
         return;
       }
 
       if (person.hasPartner && Math.random() < 0.16) {
-        setCurrentEvent(withTarget(createPartnerCareerEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createPartnerCareerEvent(person), person);
         return;
       }
 
       if (!person.job.employed && schoolCompleted) {
-        setCurrentEvent(withTarget(createApplyJobEvent(), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createApplyJobEvent(), person);
         return;
       }
 
       if (schoolCompleted && Math.random() < 0.2) {
-        setCurrentEvent(withTarget(createPromotionEvent(person.job.level), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createPromotionEvent(person.job.level), person);
         return;
       }
 
       if (person.hasPartner && age >= 21 && age <= 40 && person.stats.happiness > 40 && person.stats.love > 38 && Math.random() < 0.42) {
-        setCurrentEvent(withTarget(createAIBabyProposalEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createAIBabyProposalEvent(person), person);
         return;
       }
 
       if (schoolCompleted && Math.random() < 0.2) {
-        setCurrentEvent(withTarget(createAICareerFocusEvent(person), person));
-        setState((prev) => ({ ...prev, isRunning: false }));
-        lastEventAtRef.current = Date.now();
+        pauseForEvent(createAICareerFocusEvent(person), person);
         return;
       }
 
       const ev = pickRandomEvent(BASE_EVENTS, lastEventIdRef.current);
       if (!ev) return;
       lastEventIdRef.current = ev.id;
-      setCurrentEvent(withTarget(ev, person));
-      setState((prev) => ({ ...prev, isRunning: false }));
-      lastEventAtRef.current = Date.now();
+      pauseForEvent(ev, person)
     }, 1000);
     return () => clearInterval(id);
   }, [state.isRunning]);
@@ -495,6 +526,8 @@ export function useGameSimulation() {
           love: person.stats.love + (effects.love ?? 0),
           charm: person.stats.charm + (effects.charm ?? 0),
           iq: person.stats.iq + (effects.iq ?? 0),
+          socialReputation: clampStat(person.stats.socialReputation + (effects.socialReputation ?? 0)),
+          burnout: clampStat(person.stats.burnout + (effects.burnout ?? 0)),
         },
       };
 
@@ -721,6 +754,7 @@ export function useGameSimulation() {
       option: applied?.resultOverride?.option ?? option.text,
     });
     setCurrentEvent(null);
+    setState((prev) => ({ ...prev, isRunning: true }));
   };
 
   const reset = () => {
@@ -758,6 +792,110 @@ export function useGameSimulation() {
       return next;
     });
 
+  const takeLoan = (amount) => {
+    if (amount <= 0) return;
+    setState((prev) => {
+      const payment = Math.round(amount / 1200);
+      return {
+        ...prev,
+        money: clampNumber(prev.money + amount),
+        loans: {
+          ...prev.loans,
+          principal: Number((prev.loans.principal + amount).toFixed(2)),
+          paymentPerSecond: prev.loans.paymentPerSecond + payment,
+        },
+        recurringExpensesPerSecond: {
+          ...prev.recurringExpensesPerSecond,
+          debt: (prev.recurringExpensesPerSecond.debt ?? 0) + payment,
+        },
+      };
+    });
+  };
+
+  const repayLoan = (amount) => {
+    if (amount <= 0) return;
+    setState((prev) => {
+      const payment = Math.min(amount, prev.money, prev.loans.principal);
+      if (payment <= 0) return prev;
+      const remainingPrincipal = Number((prev.loans.principal - payment).toFixed(2));
+      const nextDebtPayment = remainingPrincipal <= 0 ? 0 : prev.loans.paymentPerSecond;
+      return {
+        ...prev,
+        money: clampNumber(prev.money - payment),
+        loans: {
+          ...prev.loans,
+          principal: Math.max(0, remainingPrincipal),
+          paymentPerSecond: nextDebtPayment,
+        },
+        recurringExpensesPerSecond: {
+          ...prev.recurringExpensesPerSecond,
+          debt: nextDebtPayment,
+        },
+      };
+    });
+  };
+
+  const buyBusiness = (amenityName) => {
+    setState((prev) => {
+      const amenity = prev.city.amenities.find((item) => item.name === amenityName);
+      if (!amenity || amenity.ownerId || prev.money < amenity.cost) return prev;
+      const active = prev.family.people[prev.family.activePersonId];
+      const updatedActive = {
+        ...active,
+        job: {
+          employed: true,
+          title: `${amenity.name} Owner`,
+          level: 1,
+          salaryPerSecond: amenity.incomePerSecond,
+          proficiency: Math.min(20, active.job?.proficiency ?? 0),
+        },
+      };
+      return {
+        ...prev,
+        money: prev.money - amenity.cost,
+        city: {
+          ...prev.city,
+          amenities: prev.city.amenities.map((item) => item.name === amenityName ? { ...item, ownerId: active.id } : item),
+        },
+        assets: {
+          ...prev.assets,
+          businessesOwned: prev.assets.businessesOwned + 1,
+        },
+        family: {
+          ...prev.family,
+          people: {
+            ...prev.family.people,
+            [active.id]: updatedActive,
+          },
+        },
+      };
+    });
+  };
+
+  const takeVacation = () => {
+    setState((prev) => {
+      if (prev.money < 3400) return prev;
+      return {
+      ...prev,
+      money: prev.money - 3400,
+      family: {
+        ...prev.family,
+        people: Object.fromEntries(Object.entries(prev.family.people).map(([id, person]) => [
+          id,
+          {
+            ...person,
+            stats: {
+              ...person.stats,
+              burnout: clampStat((person.stats.burnout ?? 0) - 20),
+              happiness: clampStat((person.stats.happiness ?? 0) + 5),
+            },
+          },
+        ])),
+      },
+    };
+    });
+  };
+
   return {
     ...state,
     activePerson,
@@ -770,6 +908,10 @@ export function useGameSimulation() {
     reset,
     setIsRunning: (value) => setState((prev) => ({ ...prev, isRunning: value })),
     spendMoney,
+    takeLoan,
+    repayLoan,
+    buyBusiness,
+    takeVacation,
     selectPerson: (personId) =>
       setState((prev) => ({
         ...prev,

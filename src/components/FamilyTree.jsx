@@ -93,6 +93,8 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
       ['Love', selectedPerson.stats.love],
       ['Charm', selectedPerson.stats.charm],
       ['IQ', selectedPerson.stats.iq],
+      ['Social reputation', selectedPerson.stats.socialReputation],
+      ['Burnout', selectedPerson.stats.burnout],
       ['Job proficiency', selectedPerson.job?.proficiency ?? 0],
     ];
   }, [selectedPerson]);
@@ -135,6 +137,7 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
             {selectedStats?.map(([label, value]) => <StatusBar key={label} label={label} value={value} />)}
           </div>
           <div className="sub">Traits: {selectedPerson.traits.join(', ')}</div>
+          {selectedPerson.talent ? <div className="sub">Talent discovered: <b>{selectedPerson.talent}</b></div> : null}
         </div>
       ) : (
         <div className="memberCardHint">Select a person to see their status.</div>

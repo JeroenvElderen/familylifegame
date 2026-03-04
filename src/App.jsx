@@ -33,7 +33,7 @@ const SHOP_SECTIONS = {
   lifestyle: {
     label: 'Lifestyle',
     items: [
-      { name: 'Family Vacation', cost: 3400, description: 'Take everyone on a realistic short break.' },
+      { name: 'Family Vacation', cost: 3400, description: 'Take everyone on a realistic short break.', action: 'vacation' },
       { name: 'Home Gym', cost: 2600, description: 'Improve health and daily routine.' },
       { name: 'Premium Childcare', cost: 14500, description: 'Support children with better quality care.' },
     ],
@@ -63,6 +63,11 @@ export default function App() {
     weather,
     city,
     monthlySummary,
+    loans,
+    takeLoan,
+    repayLoan,
+    buyBusiness,
+    takeVacation,
   } = useGameSimulation();
   const [shopOpen, setShopOpen] = useState(false);
   const [shopSection, setShopSection] = useState('dealership');
@@ -107,6 +112,18 @@ export default function App() {
           }
         />
 
+        <StatCard
+          label="Debt"
+          value={`€${Math.round(loans.principal)}`}
+          sub={
+            <>
+              Loan payment/s: <b>{loans.paymentPerSecond}</b>
+              <button className="btn tiny" style={{ marginLeft: 8 }} onClick={() => takeLoan(10000)}>Borrow €10k</button>
+              <button className="btn tiny" style={{ marginLeft: 8 }} onClick={() => repayLoan(5000)}>Repay €5k</button>
+            </>
+          }
+        />
+
         <FamilyTree
           family={family}
           activePerson={activePerson}
@@ -122,16 +139,22 @@ export default function App() {
               <div key={amenity.name} className="cityTile">
                 <div className="shopTitle">{amenity.name}</div>
                 <div className="shopMeta">{amenity.effect}</div>
+                <div className="shopMeta">Business price: €{amenity.cost} • owner income {amenity.incomePerSecond}/s</div>
+                {amenity.ownerId ? (
+                  <div className="shopMeta">Owned by family member</div>
+                ) : (
+                  <button className="btn tiny" disabled={money < amenity.cost} onClick={() => buyBusiness(amenity.name)}>Buy business</button>
+                )}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="card">
+        <section className="card weatherCard">
           <div className="label">Weather & Economy</div>
-          <div className="value" style={{ fontSize: 22 }}>{weather.month} • {weather.type}</div>
-          <div className="sub">Cost pressure: <b>{Math.round(weather.costMultiplier * 100)}%</b> of base household costs this month.</div>
-          <div className="sub">Last monthly update: {monthlySummary}</div>
+          <div className="value" style={{ fontSize: 22 }}>{weather.year} • {weather.type}</div>
+          <div className="sub">Cost pressure: <b>{Math.round(weather.costMultiplier * 100)}%</b> of base household costs this year.</div>
+          <div className="sub">Last yearly update: {monthlySummary}</div>
         </section>
       </main>
 
@@ -166,7 +189,9 @@ export default function App() {
                     <button
                       className="btn tiny"
                       disabled={!canBuy}
-                      onClick={() => spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType, item.bonusType, item.bonusValue)}
+                      onClick={() => (item.action === 'vacation'
+                        ? takeVacation()
+                        : spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType, item.bonusType, item.bonusValue))}
                     >
                       Buy
                     </button>
