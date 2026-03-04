@@ -27,7 +27,7 @@ const SHOP_SECTIONS = {
     items: [
       { name: 'New Furniture Package', cost: 14000, description: 'Boosts family comfort and monthly happiness.', bonusType: 'homeComfort', bonusValue: 2 },
       { name: 'Child Room Upgrade', cost: 9000, description: 'Improves children mood and lowers stress at home.', bonusType: 'homeComfort', bonusValue: 1 },
-      { name: 'Energy Smart Setup', cost: 11000, description: 'Smarter heating/lights reduces long-term weather utility spikes.', bonusType: 'weatherResilience', bonusValue: 0.08 },
+      { name: 'Energy Smart Setup', cost: 11000, description: 'Smarter heating/lights lowers monthly utility bills over time.', bonusType: 'homeComfort', bonusValue: 1 },
     ],
   },
   lifestyle: {
@@ -43,7 +43,7 @@ const SHOP_SECTIONS = {
 export default function App() {
   const {
     moneyDisplay,
-    incomePerSecond,
+    monthlyNetIncome,
     dateDisplay,
     yearsPassed,
     isRunning,
@@ -60,9 +60,7 @@ export default function App() {
     spendMoney,
     money,
     recurringExpensesPerSecond,
-    weather,
     city,
-    monthlySummary,
     loans,
     takeLoan,
     repayLoan,
@@ -97,7 +95,7 @@ export default function App() {
           value={moneyDisplay}
           sub={
             <>
-              Net/sec: <b>{incomePerSecond.toFixed(2)}</b>
+              Net/month: <b>{Math.round(monthlyNetIncome)}</b>
             </>
           }
         />
@@ -117,7 +115,7 @@ export default function App() {
           value={`€${Math.round(loans.principal)}`}
           sub={
             <>
-              Loan payment/s: <b>{loans.paymentPerSecond}</b>
+              Loan payment/month: <b>{loans.paymentPerSecond}</b>
               <button className="btn tiny" style={{ marginLeft: 8 }} onClick={() => takeLoan(10000)}>Borrow €10k</button>
               <button className="btn tiny" style={{ marginLeft: 8 }} onClick={() => repayLoan(5000)}>Repay €5k</button>
             </>
@@ -139,7 +137,7 @@ export default function App() {
               <div key={amenity.name} className="cityTile">
                 <div className="shopTitle">{amenity.name}</div>
                 <div className="shopMeta">{amenity.effect}</div>
-                <div className="shopMeta">Business price: €{amenity.cost} • owner income {amenity.incomePerSecond}/s</div>
+                <div className="shopMeta">Business price: €{amenity.cost} • owner income {amenity.incomePerSecond}/month</div>
                 {amenity.ownerId ? (
                   <div className="shopMeta">Owned by family member</div>
                 ) : (
@@ -150,12 +148,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="card weatherCard">
-          <div className="label">Weather & Economy</div>
-          <div className="value" style={{ fontSize: 22 }}>{weather.year} • {weather.type}</div>
-          <div className="sub">Cost pressure: <b>{Math.round(weather.costMultiplier * 100)}%</b> of base household costs this year.</div>
-          <div className="sub">Last yearly update: {monthlySummary}</div>
-        </section>
+
       </main>
 
       {shopOpen ? (
@@ -163,7 +156,7 @@ export default function App() {
           <section className="modal shopModal" onClick={(e) => e.stopPropagation()}>
             <div className="modalTitle">Family Shop</div>
             <div className="sub">Spend money on cars, properties, and lifestyle upgrades.</div>
-            <div className="sub">Recurring bills/s: <b>{Object.values(recurringExpensesPerSecond).reduce((a, b) => a + b, 0)}</b> (includes rent/mortgage, upkeep, insurance, weather pressure)</div>
+            <div className="sub">Recurring bills/month: <b>{Object.values(recurringExpensesPerSecond).reduce((a, b) => a + b, 0)}</b> (includes housing, upkeep, insurance, and debt)</div>
 
             <div className="shopTabs">
               {Object.entries(SHOP_SECTIONS).map(([key, section]) => (
@@ -184,7 +177,7 @@ export default function App() {
                   <div className="shopItem" key={item.name}>
                     <div>
                       <div className="shopTitle">{item.name}</div>
-                      <div className="shopMeta">{item.description} • €{item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/s` : ''}</div>
+                      <div className="shopMeta">{item.description} • €{item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/month` : ''}</div>
                     </div>
                     <button
                       className="btn tiny"

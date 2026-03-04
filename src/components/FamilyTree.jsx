@@ -27,7 +27,7 @@ function Avatar({ person, onSelect, isActive, isSelected }) {
       </button>
       <div className="avatarLabel">{person.name}</div>
       <div className="avatarMeta">Age {Math.floor(person.ageDays / 365)}</div>
-      <div className={`avatarIncome ${net >= 0 ? 'gain' : 'cost'}`}>{net >= 0 ? '+' : ''}{net}/s</div>
+      <div className={`avatarIncome ${net >= 0 ? 'gain' : 'cost'}`}>{net >= 0 ? '+' : ''}{net}/month</div>
     </div>
   );
 }
@@ -129,8 +129,8 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
           </div>
           <div className="memberGrid">
             <span>Job: {selectedPerson.job.title}</span>
-            <span>Salary/s: {selectedPerson.job.salaryPerSecond}</span>
-            <span>Pension/s: {selectedPerson.pensionPerSecond ?? 0}</span>
+            <span>Salary/month: {selectedPerson.job.salaryPerSecond}</span>
+            <span>Pension/month: {selectedPerson.pensionPerSecond ?? 0}</span>
             <span>Level: {selectedPerson.job.level ?? 0}</span>
           </div>
           <div className="memberStatusGrid">

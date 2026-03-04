@@ -15,9 +15,11 @@ import {
   createPregnancyPlanEvent,
   createPromotionEvent,
   createRetirementPlanningEvent,
+  createSchoolAttendanceEvent,
   createSchoolPerformanceEvent,
   createTeenJobEvent,
   createUniversityAdmissionsEvent,
+  createBurnoutInterventionEvent,
 } from '../data/events';
 import {
   clampNumber,
@@ -31,7 +33,6 @@ import {
   randomAvatar,
   SCHOOL_STAGES,
   SCHOOL_STAGE_YEARS,
-  TICK_MS,
 } from '../utils/gameUtils';
 
 let personIdCounter = 1;
@@ -45,24 +46,9 @@ const withTarget = (event, person) => ({ ...event, targetPersonId: person.id, ta
 
 const SCHOOL_DAYS_PER_STAGE = SCHOOL_STAGE_YEARS * DAYS_PER_YEAR;
 const SCHOOL_START_AGE = 6;
+const DAYS_PER_MONTH = 30;
 
-const WEATHER_TYPES = [
-  { type: 'Mild Rain', min: 1.02, max: 1.08 },
-  { type: 'Cold Snap', min: 1.08, max: 1.2 },
-  { type: 'Storm Season', min: 1.06, max: 1.16 },
-  { type: 'Clear Skies', min: 0.95, max: 1.02 },
-  { type: 'Heatwave', min: 1.01, max: 1.1 },
-];
 const CITY_AMENITIES = ['Hospital', 'School', 'Shopping Centre', 'Public Park', 'Train Station', 'Creche', 'Gym', 'Library'];
-
-const randomWeather = (year) => {
-  const profile = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
-  return {
-    year: `Year ${year}`,
-    type: profile.type,
-    costMultiplier: Number((profile.min + Math.random() * (profile.max - profile.min)).toFixed(2)),
-  };
-};
 
 const generateCity = () => {
   const namePrefixes = ['North', 'South', 'River', 'Green', 'Liffey', 'Oak'];
@@ -74,7 +60,7 @@ const generateCity = () => {
       name,
       effect: name === 'Hospital' ? 'Healthcare costs slightly lower' : name === 'School' ? 'Education outcomes improve' : 'Family quality-of-life boost',
       cost: 100000 + Math.floor(Math.random() * 260000),
-      incomePerSecond: 220 + Math.floor(Math.random() * 260),
+      incomePerSecond: 2600 + Math.floor(Math.random() * 2600),
       ownerId: null,
     })),
   };
@@ -170,7 +156,7 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
     employed: true,
     title: 'Junior Clerk',
     level: 1,
-    salaryPerSecond: 120 + Math.floor(Math.random() * 96),
+    salaryPerSecond: 2400 + Math.floor(Math.random() * 1800),
     proficiency: Math.floor(Math.random() * 45),
   },
   pensionPerSecond: 0,
@@ -186,8 +172,7 @@ const initialState = () => {
   const founder = createPerson({ ageYears: 21, joinedDay: 1 });
   const baselineExpenses = {
     housing: 340,
-    maintenance: 35,
-    weather: 0,
+    maintenance: 650,
     children: 0,
     pets: 0,
     insurance: 0,
@@ -213,11 +198,9 @@ const initialState = () => {
     },
     modifiers: {
       homeComfort: 0,
-      weatherResilience: 0,
     },
     city: generateCity(),
-    weather: randomWeather(1),
-    monthlySummary: 'No year finished yet',
+    monthlySummary: 'No yearly update yet',
     loans: {
       principal: 0,
       annualInterestRate: 0.07,
@@ -271,31 +254,7 @@ export function useGameSimulation() {
   const activePerson = state.family.people[state.family.activePersonId];
   const selectedPerson = state.family.people[state.family.selectedPersonId];
   const totalIncome = householdIncome(state.family.people);
-  const incomePerSecond = totalIncome - sumRecurring(state.recurringExpensesPerSecond);
-
-  useEffect(() => {
-    if (!state.isRunning) return;
-    const id = setInterval(() => {
-      setState((prev) => {
-        const nextMoney = clampNumber(prev.money + (householdIncome(prev.family.people) - sumRecurring(prev.recurringExpensesPerSecond)));
-        const repayment = Math.min(prev.loans.paymentPerSecond, prev.loans.principal);
-        return {
-          ...prev,
-          money: nextMoney,
-          loans: {
-            ...prev.loans,
-            principal: Number((prev.loans.principal - repayment).toFixed(2)),
-            paymentPerSecond: prev.loans.principal - repayment <= 0 ? 0 : prev.loans.paymentPerSecond,
-          },
-          recurringExpensesPerSecond: {
-            ...prev.recurringExpensesPerSecond,
-            debt: prev.loans.principal - repayment <= 0 ? 0 : prev.recurringExpensesPerSecond.debt,
-          },
-        };
-      });
-    }, TICK_MS);
-    return () => clearInterval(id);
-  }, [state.isRunning]);
+  const monthlyNetIncome = totalIncome - sumRecurring(state.recurringExpensesPerSecond);
 
   useEffect(() => {
     if (!state.isRunning) return;
@@ -321,10 +280,8 @@ export function useGameSimulation() {
         );
 
         const isYearEnd = wraps;
-        const nextWeather = isYearEnd ? randomWeather(prev.yearsPassed + 1) : prev.weather;
-        const weatherCost = isYearEnd
-          ? Math.max(0, Math.round(prev.recurringExpensesPerSecond.housing * Math.max(0, (nextWeather.costMultiplier - prev.modifiers.weatherResilience - 1))))
-          : prev.recurringExpensesPerSecond.weather;
+        const monthDay = ((nextDay - 1) % DAYS_PER_MONTH) + 1;
+        const isMonthEnd = monthDay === DAYS_PER_MONTH || wraps;
 
         const comfortBoost = isYearEnd ? prev.modifiers.homeComfort : 0;
         const yearlyUpdates = { talentDiscoveries: [], crimeSummary: null };
@@ -361,7 +318,7 @@ export function useGameSimulation() {
                     ...person.job,
                     level: earnedPromotion ? person.job.level + 1 : person.job.level,
                     salaryPerSecond: earnedPromotion
-                      ? Math.round(person.job.salaryPerSecond * 1.14)
+                      ? Math.round(person.job.salaryPerSecond * 1.08)
                       : person.job.salaryPerSecond,
                     proficiency: earnedPromotion ? 0 : nextProficiency,
                   }
@@ -380,18 +337,21 @@ export function useGameSimulation() {
           ? Number((prev.loans.principal * (1 + prev.loans.annualInterestRate)).toFixed(2))
           : prev.loans.principal;
 
+        const monthlyIncome = householdIncome(yearPeople);
+        const monthlyExpenses = sumRecurring(prev.recurringExpensesPerSecond);
+        const monthlyNet = isMonthEnd ? (monthlyIncome - monthlyExpenses) : 0;
+
         return {
           ...prev,
+          money: clampNumber(prev.money + monthlyNet),
           day: wraps ? 1 : nextDay,
           yearsPassed: wraps ? prev.yearsPassed + 1 : prev.yearsPassed,
-          weather: nextWeather,
           monthlySummary: isYearEnd
-            ? `${nextWeather.year}: ${nextWeather.type}. Weather cost ${weatherCost}/s. ${yearlyUpdates.crimeSummary} ${yearlyUpdates.talentDiscoveries.join(' • ')}`
+            ? `Year ${prev.yearsPassed + 1}: ${yearlyUpdates.crimeSummary} ${yearlyUpdates.talentDiscoveries.join(' • ')}`
             : prev.monthlySummary,
           recurringExpensesPerSecond: {
             ...prev.recurringExpensesPerSecond,
-            weather: weatherCost,
-            maintenance: prev.recurringExpensesPerSecond.maintenance + (crimeCost > 0 ? 8 : 0),
+            maintenance: prev.recurringExpensesPerSecond.maintenance + (crimeCost > 0 ? 120 : 0),
             debt: prev.loans.paymentPerSecond,
           },
           loans: {
@@ -426,6 +386,16 @@ export function useGameSimulation() {
       if (!person) return;
       const age = Math.floor(person.ageDays / DAYS_PER_YEAR);
 
+      const burnoutLevel = person.stats?.burnout ?? 0;
+      if (burnoutLevel >= 100) {
+        pauseForEvent(createBurnoutInterventionEvent(person), person);
+        return;
+      }
+      if (burnoutLevel >= 50 && Math.random() < 0.25) {
+        pauseForEvent(createBurnoutInterventionEvent(person), person);
+        return;
+      }
+
       if (!person.hasPartner && age >= 12 && Math.random() < 0.25) {
         pauseForEvent(createGirlfriendEvent(person), person);
         return;
@@ -440,6 +410,11 @@ export function useGameSimulation() {
 
       if (age >= 13 && age <= 19 && person.parentId && !person.job.employed && Math.random() < 0.22) {
         pauseForEvent(createTeenJobEvent(person), person);
+        return;
+      }
+
+      if (person.parentId && age >= 6 && age <= 18 && Math.random() < 0.18) {
+        pauseForEvent(createSchoolAttendanceEvent(person), person);
         return;
       }
 
@@ -588,7 +563,7 @@ export function useGameSimulation() {
         const spouse = nextPeople[updated.spouseId];
         nextPeople[updated.spouseId] = {
           ...spouse,
-          job: { ...spouse.job, employed: true, salaryPerSecond: Math.max(-140, spouse.job.salaryPerSecond + effects.partnerIncomeDelta) },
+          job: { ...spouse.job, employed: true, salaryPerSecond: Math.max(0, spouse.job.salaryPerSecond + effects.partnerIncomeDelta) },
         };
       }
 
@@ -900,7 +875,7 @@ export function useGameSimulation() {
     ...state,
     activePerson,
     selectedPerson,
-    incomePerSecond,
+    monthlyNetIncome,
     currentEvent,
     eventResult,
     chooseOption,

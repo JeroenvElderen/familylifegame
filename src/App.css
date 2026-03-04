@@ -120,8 +120,6 @@ body {
 
 .cityGrid { margin-top: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .cityTile { padding: 10px; border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); display: grid; gap: 6px; align-content: start; }
-.weatherCard { min-height: 180px; }
-.weatherCard .value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .modalOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.66); display: grid; place-items: center; padding: 18px; gap: 12px; }
 .modal { width: min(560px, 100%); background: #1d1d2b; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 18px; padding: 16px; }

@@ -210,7 +210,7 @@ export function createApplyJobEvent() {
         text: `Apply: ${job}`,
         effects: {
           jobTitle: job,
-          salaryPerSecond: 120 + Math.floor(Math.random() * 156),
+          salaryPerSecond: 2400 + Math.floor(Math.random() * 2200),
           happiness: 2,
           love: 1,
         },
@@ -302,9 +302,9 @@ export function createPartnerCareerEvent(person) {
     title: `${partnerLabel} has career news`,
     description: `${partnerLabel} got a work update that impacts your household income.`,
     options: [
-      { text: 'Support a better role', effects: { partnerIncomeDelta: 55, happiness: 2, love: 3 } },
+      { text: 'Support a better role', effects: { partnerIncomeDelta: 350, happiness: 2, love: 3 } },
       { text: 'Choose stability for now', effects: { partnerIncomeDelta: 0, iq: 1, love: 1 } },
-      { text: 'Take risky freelance switch', effects: { partnerIncomeSet: [-90, -30, 0, 80, 140][Math.floor(Math.random() * 5)], happiness: -1, iq: 2 } },
+      { text: 'Take risky freelance switch', effects: { partnerIncomeSet: [0, 1200, 2200, 3600, 5200][Math.floor(Math.random() * 5)], happiness: -1, iq: 2 } },
       { text: 'Encourage a break from work', effects: { partnerIncomeSet: 0, happiness: 1, love: 2 } },
     ],
   };
@@ -316,8 +316,8 @@ export function createTeenJobEvent(person) {
     title: `${person.name} wants a part-time job`,
     description: 'A teen in your family can start earning while studying.',
     options: [
-      { text: 'Take a weekend café job', effects: { jobTitle: 'Teen Café Worker', salaryPerSecond: 40, schoolPerformanceDelta: -4, happiness: 1 } },
-      { text: 'Tutor younger kids', effects: { jobTitle: 'Part-time Tutor', salaryPerSecond: 50, schoolPerformanceDelta: 2, iq: 2 } },
+      { text: 'Take a weekend café job', effects: { jobTitle: 'Teen Café Worker', salaryPerSecond: 450, schoolPerformanceDelta: -4, happiness: 1 } },
+      { text: 'Tutor younger kids', effects: { jobTitle: 'Part-time Tutor', salaryPerSecond: 520, schoolPerformanceDelta: 2, iq: 2 } },
       { text: 'Focus only on studies', effects: { happiness: -1, schoolPerformanceDelta: 5, iq: 1 } },
     ],
   };
@@ -414,5 +414,37 @@ export function createBabyNamingEvent(gender) {
       text: name,
       effects: { action: 'nameBaby', babyName: name, happiness: 6, love: 6, money: -250 },
     })),
+  };
+}
+
+export function createSchoolAttendanceEvent(person) {
+  return {
+    id: 'school_attendance_event',
+    title: `${person.name} has a school attendance update`,
+    description: 'School attendance is now being tracked with realistic milestones.',
+    options: [
+      { text: 'Keep a regular school routine', effects: { schoolPerformanceDelta: 6, happiness: 1, iq: 1 } },
+      { text: 'Book a parent-teacher meeting', effects: { schoolPerformanceDelta: 8, money: -80, happiness: -1 } },
+      { text: 'Allow a mental health day', effects: { schoolPerformanceDelta: -2, burnout: -8, happiness: 3 } },
+      { text: 'Ignore attendance warnings', effects: { schoolPerformanceDelta: -8, happiness: -2, socialReputation: -2 } },
+    ],
+  };
+}
+
+export function createBurnoutInterventionEvent(person) {
+  const burnout = person.stats?.burnout ?? 0;
+  const severe = burnout >= 100;
+  return {
+    id: severe ? 'burnout_full_event' : 'burnout_mid_event',
+    title: severe ? `${person.name} reached full burnout` : `${person.name} is halfway to burnout`,
+    description: severe
+      ? 'Immediate action is needed. Choose a recovery plan to prevent long-term damage.'
+      : 'Warning signs are showing. Early support can reduce burnout before it becomes severe.',
+    options: [
+      { text: 'Take paid leave and rest', effects: { burnout: severe ? -100 : -40, happiness: 5, money: severe ? -300 : -120 } },
+      { text: 'Start therapy sessions', effects: { burnout: severe ? -70 : -30, happiness: 3, money: -180, iq: 1 } },
+      { text: 'Reduce workload for a month', effects: { burnout: severe ? -60 : -25, happiness: 2, money: -220 } },
+      { text: 'Push through it', effects: { burnout: severe ? 0 : 10, happiness: -4, love: -2 } },
+    ],
   };
 }
