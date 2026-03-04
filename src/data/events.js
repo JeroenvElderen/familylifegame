@@ -170,12 +170,18 @@ export function createMarriageEvent(person) {
   const partnerLabel = person.partnerName ?? person.spouseName ?? 'their partner';
   return {
     id: 'marriage_event',
-    title: 'A serious relationship starts',
-    description: `${person.name} and ${partnerLabel} are discussing marriage.`,
+    title: 'Marriage planning discussion',
+    description: `${person.name} and ${partnerLabel} are discussing long-term commitment, legal costs, and living plans.`,
     options: [
-      { text: 'Get married soon', effects: { married: true, hasPartner: true, happiness: 8, love: 8, charm: 2 } },
-      { text: 'Wait a little longer', effects: { love: 3, happiness: 2 } },
-      { text: 'Stay focused on work', effects: { iq: 1, happiness: -2, love: -2 } },
+      {
+        text: 'Book a full wedding (€12,000)',
+        effects: { married: true, hasPartner: true, money: -12000, happiness: 6, love: 7, charm: 2 },
+      },
+      {
+        text: 'Small civil ceremony (€3,500)',
+        effects: { married: true, hasPartner: true, money: -3500, happiness: 4, love: 5, iq: 1 },
+      },
+      { text: 'Wait and build savings first', effects: { love: 2, happiness: 1, iq: 2 } },
       { text: 'Break up', effects: { hasPartner: false, losePartner: true, happiness: -4, love: -6 } },
     ],
   };
@@ -210,7 +216,7 @@ export function createApplyJobEvent() {
         text: `Apply: ${job}`,
         effects: {
           jobTitle: job,
-          salaryPerSecond: 2400 + Math.floor(Math.random() * 2200),
+          salaryPerSecond: 260 + Math.floor(Math.random() * 180),
           happiness: 2,
           love: 1,
         },

@@ -22,6 +22,14 @@ const SHOP_SECTIONS = {
       { name: 'Vacation Cabin', cost: 210000, upkeep: 520, recurringType: 'housing', assetType: 'houses', description: 'Holiday home with realistic upkeep and taxes.' },
     ],
   },
+  rentals: {
+    label: 'Rentals',
+    items: [
+      { name: 'Upgrade to 1-Bed Apartment', cost: 1600, minAnnualIncomeEuro: 37000, rentalTier: 'one_bed', description: 'Typical current Irish rent tier for 1-bed living.' },
+      { name: 'Upgrade to 2-Bed Apartment', cost: 2200, minAnnualIncomeEuro: 52000, rentalTier: 'two_bed', description: 'Larger rental with realistic city-level pricing.' },
+      { name: 'Upgrade to 3-Bed House', cost: 2800, minAnnualIncomeEuro: 70000, rentalTier: 'three_bed', description: 'Family-scale rental, high income requirement.' },
+    ],
+  },
   renovation: {
     label: 'Renovation (Under Renovation)',
     items: [
@@ -58,6 +66,7 @@ export default function App() {
     selectedPerson,
     selectPerson,
     spendMoney,
+    upgradeRental,
     money,
     recurringExpensesPerSecond,
     city,
@@ -66,6 +75,9 @@ export default function App() {
     repayLoan,
     buyBusiness,
     takeVacation,
+    householdAnnualIncomeEuro,
+    rentalMarket,
+    assets,
   } = useGameSimulation();
   const [shopOpen, setShopOpen] = useState(false);
   const [shopSection, setShopSection] = useState('dealership');
@@ -157,6 +169,7 @@ export default function App() {
             <div className="modalTitle">Family Shop</div>
             <div className="sub">Spend money on cars, properties, and lifestyle upgrades.</div>
             <div className="sub">Recurring bills/month: <b>{Object.values(recurringExpensesPerSecond).reduce((a, b) => a + b, 0)}</b> (includes housing, upkeep, insurance, and debt)</div>
+            <div className="sub">Current rental: <b>{rentalMarket[assets.rentalTier]?.label ?? 'Studio Apartment'}</b> • Household income estimate: <b>€{Math.round(householdAnnualIncomeEuro)}/year</b></div>
 
             <div className="shopTabs">
               {Object.entries(SHOP_SECTIONS).map(([key, section]) => (
@@ -172,19 +185,28 @@ export default function App() {
 
             <div className="shopList">
               {activeSection.items.map((item) => {
-                const canBuy = money >= item.cost;
+                const incomeEligible = !item.minAnnualIncomeEuro || householdAnnualIncomeEuro >= item.minAnnualIncomeEuro;
+                const canBuy = money >= item.cost && incomeEligible;
                 return (
                   <div className="shopItem" key={item.name}>
                     <div>
                       <div className="shopTitle">{item.name}</div>
-                      <div className="shopMeta">{item.description} • €{item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/month` : ''}</div>
+                      <div className="shopMeta">{item.description} • €{item.cost}{item.upkeep ? ` • upkeep ${item.upkeep}/s` : ''}{item.minAnnualIncomeEuro ? ` • requires €${item.minAnnualIncomeEuro}/yr income` : ''}</div>
                     </div>
                     <button
                       className="btn tiny"
                       disabled={!canBuy}
-                      onClick={() => (item.action === 'vacation'
-                        ? takeVacation()
-                        : spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType, item.bonusType, item.bonusValue))}
+                      onClick={() => {
+                        if (item.action === 'vacation') {
+                          takeVacation();
+                          return;
+                        }
+                        if (item.rentalTier) {
+                          upgradeRental(item.rentalTier);
+                          return;
+                        }
+                        spendMoney(item.cost, item.recurringType, item.upkeep ?? 0, item.assetType, item.bonusType, item.bonusValue);
+                      }}
                     >
                       Buy
                     </button>

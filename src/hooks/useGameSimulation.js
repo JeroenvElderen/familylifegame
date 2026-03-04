@@ -106,6 +106,18 @@ const householdIncome = (people) => Object.values(people).reduce((acc, person) =
 
 const PROGRESSION_PER_YEAR_MAX = 5;
 const TALENTS = ['Music', 'Sports', 'Coding'];
+const EURO_MONTH_TO_GAME = 10;
+const EURO_YEAR_TO_GAME = 100;
+const MIN_IRISH_ANNUAL_SALARY = 26000;
+const RENTAL_MARKET = {
+  studio: { label: 'Studio Apartment', monthlyRentEuro: 1450, minAnnualIncomeEuro: 26000, moveInFeeEuro: 1200 },
+  one_bed: { label: '1-Bed Apartment', monthlyRentEuro: 1850, minAnnualIncomeEuro: 37000, moveInFeeEuro: 1600 },
+  two_bed: { label: '2-Bed Apartment', monthlyRentEuro: 2400, minAnnualIncomeEuro: 52000, moveInFeeEuro: 2200 },
+  three_bed: { label: '3-Bed House', monthlyRentEuro: 3200, minAnnualIncomeEuro: 70000, moveInFeeEuro: 2800 },
+};
+
+const euroMonthToGameRate = (value) => Math.round(value / EURO_MONTH_TO_GAME);
+const euroYearToGameRate = (value) => Math.round(value / EURO_YEAR_TO_GAME);
 
 const nextUniqueBabyName = (usedNames) => {
   let candidate = generatePersonName();
@@ -156,7 +168,7 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
     employed: true,
     title: 'Junior Clerk',
     level: 1,
-    salaryPerSecond: 2400 + Math.floor(Math.random() * 1800),
+    salaryPerSecond: euroYearToGameRate(MIN_IRISH_ANNUAL_SALARY) + Math.floor(Math.random() * 72),
     proficiency: Math.floor(Math.random() * 45),
   },
   pensionPerSecond: 0,
@@ -170,9 +182,10 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
 
 const initialState = () => {
   const founder = createPerson({ ageYears: 21, joinedDay: 1 });
+  const startingRental = RENTAL_MARKET.studio;
   const baselineExpenses = {
-    housing: 340,
-    maintenance: 650,
+    housing: euroMonthToGameRate(startingRental.monthlyRentEuro),
+    maintenance: 12,
     children: 0,
     pets: 0,
     insurance: 0,
@@ -192,6 +205,7 @@ const initialState = () => {
       houses: 0,
       mortgages: 0,
       rentActive: true,
+      rentalTier: 'studio',
       pets: 0,
       insurancePlan: 'none',
       businessesOwned: 0,
@@ -332,6 +346,9 @@ export function useGameSimulation() {
         const crimeRoll = isYearEnd ? Math.random() : 1;
         const crimeCost = crimeRoll < 0.2 ? 2800 : 0;
         yearlyUpdates.crimeSummary = crimeCost > 0 ? 'Crime wave increased household costs this year.' : 'Neighborhood remained safe this year.';
+        const assetWearAndTear = isYearEnd
+          ? (prev.assets.cars * 6) + (prev.assets.houses * 24)
+          : 0;
 
         const nextPrincipal = isYearEnd && prev.loans.principal > 0
           ? Number((prev.loans.principal * (1 + prev.loans.annualInterestRate)).toFixed(2))
@@ -351,7 +368,7 @@ export function useGameSimulation() {
             : prev.monthlySummary,
           recurringExpensesPerSecond: {
             ...prev.recurringExpensesPerSecond,
-            maintenance: prev.recurringExpensesPerSecond.maintenance + (crimeCost > 0 ? 120 : 0),
+            maintenance: prev.recurringExpensesPerSecond.maintenance + assetWearAndTear + (crimeCost > 0 ? 8 : 0),
             debt: prev.loans.paymentPerSecond,
           },
           loans: {
@@ -746,6 +763,7 @@ export function useGameSimulation() {
     setState((prev) => {
       if (prev.money < amount) return prev;
       const next = { ...prev, money: clampNumber(prev.money - amount) };
+      const maintenanceByAsset = { cars: 14, houses: 38 };
       if (recurringType) {
         next.recurringExpensesPerSecond = {
           ...prev.recurringExpensesPerSecond,
@@ -757,6 +775,12 @@ export function useGameSimulation() {
           ...prev.assets,
           [assetType]: (prev.assets[assetType] ?? 0) + 1,
         };
+        if (maintenanceByAsset[assetType]) {
+          next.recurringExpensesPerSecond = {
+            ...next.recurringExpensesPerSecond,
+            maintenance: (next.recurringExpensesPerSecond.maintenance ?? 0) + maintenanceByAsset[assetType],
+          };
+        }
       }
       if (bonusType) {
         next.modifiers = {
@@ -766,6 +790,32 @@ export function useGameSimulation() {
       }
       return next;
     });
+  
+  const upgradeRental = (tierKey) => {
+    const tier = RENTAL_MARKET[tierKey];
+    if (!tier) return;
+
+    setState((prev) => {
+      const annualIncomeEuro = householdIncome(prev.family.people) * EURO_YEAR_TO_GAME;
+      if (annualIncomeEuro < tier.minAnnualIncomeEuro) return prev;
+      if (prev.money < tier.moveInFeeEuro) return prev;
+      if (prev.assets.rentalTier === tierKey) return prev;
+      if (!prev.assets.rentActive) return prev;
+
+      return {
+        ...prev,
+        money: clampNumber(prev.money - tier.moveInFeeEuro),
+        recurringExpensesPerSecond: {
+          ...prev.recurringExpensesPerSecond,
+          housing: euroMonthToGameRate(tier.monthlyRentEuro),
+        },
+        assets: {
+          ...prev.assets,
+          rentalTier: tierKey,
+        },
+      };
+    });
+  };
 
   const takeLoan = (amount) => {
     if (amount <= 0) return;
@@ -883,10 +933,13 @@ export function useGameSimulation() {
     reset,
     setIsRunning: (value) => setState((prev) => ({ ...prev, isRunning: value })),
     spendMoney,
+    upgradeRental,
     takeLoan,
     repayLoan,
     buyBusiness,
     takeVacation,
+    rentalMarket: RENTAL_MARKET,
+    householdAnnualIncomeEuro: totalIncome * EURO_YEAR_TO_GAME,
     selectPerson: (personId) =>
       setState((prev) => ({
         ...prev,
