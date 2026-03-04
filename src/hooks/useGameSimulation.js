@@ -115,6 +115,32 @@ const sumRecurring = (recurring) => Object.values(recurring).reduce((acc, value)
 
 const householdIncome = (people) => Object.values(people).reduce((acc, person) => acc + (person.job?.salaryPerSecond ?? 0) + (person.pensionPerSecond ?? 0), 0);
 
+const PROGRESSION_PER_MONTH = 8;
+
+const nextUniqueBabyName = (usedNames) => {
+  let candidate = generatePersonName();
+  let guard = 0;
+  while (usedNames.has(candidate) && guard < 20) {
+    candidate = generatePersonName();
+    guard += 1;
+  }
+  if (usedNames.has(candidate)) {
+    candidate = `${candidate}-${Math.floor(Math.random() * 90) + 10}`;
+  }
+  usedNames.add(candidate);
+  return candidate;
+};
+
+const getSiblingNames = (baseName, count) => {
+  if (count <= 1) return [baseName];
+  const names = [baseName];
+  const used = new Set(names);
+  while (names.length < count) {
+    names.push(nextUniqueBabyName(used));
+  }
+  return names;
+};
+
 const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, joinedDay = 1, isPartner = false } = {}) => ({
   id: `p_${personIdCounter++}`,
   name: name ?? generatePersonName(),
@@ -139,6 +165,7 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
     title: 'Junior Clerk',
     level: 1,
     salaryPerSecond: 120 + Math.floor(Math.random() * 96),
+    proficiency: Math.floor(Math.random() * 45),
   },
   pensionPerSecond: 0,
   education: {
@@ -151,20 +178,23 @@ const createPerson = ({ ageYears = 21, parentId = null, spouseId = null, name, j
 
 const initialState = () => {
   const founder = createPerson({ ageYears: 21, joinedDay: 1 });
+  const baselineExpenses = {
+    housing: 340,
+    maintenance: 35,
+    weather: 0,
+    children: 0,
+    pets: 0,
+    insurance: 0,
+    university: 0,
+  };
+  const minFounderIncome = sumRecurring(baselineExpenses) + 20;
+  founder.job.salaryPerSecond = Math.max(founder.job.salaryPerSecond, minFounderIncome);
   return {
     money: 25000,
     isRunning: false,
     day: 1,
     yearsPassed: 0,
-    recurringExpensesPerSecond: {
-      housing: 340,
-      maintenance: 35,
-      weather: 0,
-      children: 0,
-      pets: 0,
-      insurance: 0,
-      university: 0,
-    },
+    recurringExpensesPerSecond: baselineExpenses,
     assets: {
       cars: 0,
       houses: 0,
@@ -268,7 +298,31 @@ export function useGameSimulation() {
 
         const comfortBoost = isMonthEnd ? prev.modifiers.homeComfort : 0;
         const monthPeople = isMonthEnd
-          ? Object.fromEntries(Object.entries(updatedPeople).map(([id, person]) => [id, { ...person, stats: { ...person.stats, happiness: person.stats.happiness + comfortBoost } }]))
+          ? Object.fromEntries(Object.entries(updatedPeople).map(([id, person]) => {
+            const hasJobTrack = person.job?.employed && person.job.level > 0 && person.job.title !== 'Retired';
+            const nextProficiency = hasJobTrack ? (person.job.proficiency ?? 0) + PROGRESSION_PER_MONTH : (person.job.proficiency ?? 0);
+            const earnedPromotion = hasJobTrack && nextProficiency >= 100;
+            return [
+              id,
+              {
+                ...person,
+                stats: {
+                  ...person.stats,
+                  happiness: person.stats.happiness + comfortBoost,
+                },
+                job: hasJobTrack
+                  ? {
+                    ...person.job,
+                    level: earnedPromotion ? person.job.level + 1 : person.job.level,
+                    salaryPerSecond: earnedPromotion
+                      ? Math.round(person.job.salaryPerSecond * 1.14)
+                      : person.job.salaryPerSecond,
+                    proficiency: earnedPromotion ? 0 : nextProficiency,
+                  }
+                  : person.job,
+              },
+            ];
+          }))
           : updatedPeople;
 
         return {
@@ -484,7 +538,7 @@ export function useGameSimulation() {
       }
 
       if (effects.action === 'unemployed') {
-        updated.job = { employed: false, title: 'Unemployed', level: 0, salaryPerSecond: 0 };
+        updated.job = { employed: false, title: 'Unemployed', level: 0, salaryPerSecond: 0, proficiency: 0 };
       }
 
       if (effects.jobTitle) {
@@ -493,6 +547,7 @@ export function useGameSimulation() {
           title: effects.jobTitle,
           level: 1,
           salaryPerSecond: effects.salaryPerSecond,
+          proficiency: 0,
         };
       }
 
@@ -515,6 +570,7 @@ export function useGameSimulation() {
           employed: true,
           level: updated.job.level + 1,
           salaryPerSecond: Math.round(updated.job.salaryPerSecond * (1.15 + Math.random() * 0.15)),
+          proficiency: 0,
         };
       }
 
@@ -597,9 +653,10 @@ export function useGameSimulation() {
         const babyCount = Math.max(1, Number(countRaw) || 1);
         const parent = prev.family.people[parentId];
         if (!parent) return prev;
+        const babyNames = getSiblingNames(effects.babyName, babyCount);
         const babies = Array.from({ length: babyCount }, (_, idx) => {
-          const baby = createPerson({ ageYears: 0, parentId: parent.id, name: babyCount === 1 ? effects.babyName : `${effects.babyName} ${idx + 1}`, joinedDay: absoluteDay });
-          baby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0 };
+          const baby = createPerson({ ageYears: 0, parentId: parent.id, name: babyNames[idx], joinedDay: absoluteDay });
+          baby.job = { employed: false, title: 'Child', level: 0, salaryPerSecond: 0, proficiency: 0 };
           baby.education = {
             completed: false,
             schoolStartDay: absoluteDay + SCHOOL_START_AGE * DAYS_PER_YEAR,

@@ -1,3 +1,22 @@
+import { useMemo, useState } from 'react';
+
+const clampPercent = (value) => Math.max(0, Math.min(100, Math.round(value ?? 0)));
+
+function StatusBar({ label, value }) {
+  const safeValue = clampPercent(value);
+  return (
+    <div className="memberStatusRow">
+      <div className="memberStatusLabel">
+        <span>{label}</span>
+        <span>{safeValue}%</span>
+      </div>
+      <div className="memberStatusTrack">
+        <div className="memberStatusFill" style={{ width: `${safeValue}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function Avatar({ person, onSelect, isActive, isSelected }) {
   if (!person) return null;
   const net = (person.job?.salaryPerSecond ?? 0) + (person.pensionPerSecond ?? 0);
@@ -54,6 +73,8 @@ function FamilyBranch({ person, family, activePersonId, selectedPersonId, onSele
 }
 
 export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerson }) {
+  const [treeScale, setTreeScale] = useState(1);
+
   const findRoot = () => {
     let node = activePerson;
     const seen = new Set();
@@ -65,21 +86,38 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
   };
 
   const rootPerson = findRoot();
+  const selectedStats = useMemo(() => {
+    if (!selectedPerson) return null;
+    return [
+      ['Happiness', selectedPerson.stats.happiness],
+      ['Love', selectedPerson.stats.love],
+      ['Charm', selectedPerson.stats.charm],
+      ['IQ', selectedPerson.stats.iq],
+      ['Job proficiency', selectedPerson.job?.proficiency ?? 0],
+    ];
+  }, [selectedPerson]);
 
   return (
     <section className="card wide">
       <div className="label">Family Tree</div>
-      <div className="sub">Click a family member to inspect them. Tree layout stays fixed and only expands with new generations.</div>
-      <div className="treeWrap">
-        {rootPerson ? (
-          <FamilyBranch
-            person={rootPerson}
-            family={family}
-            activePersonId={activePerson.id}
-            selectedPersonId={selectedPerson?.id}
-            onSelectPerson={onSelectPerson}
-          />
-        ) : null}
+      <div className="sub">Click a family member to inspect them. Use zoom for large families, and scroll horizontally if needed.</div>
+      <div className="treeControls">
+        <span>Zoom</span>
+        <input type="range" min="60" max="110" value={Math.round(treeScale * 100)} onChange={(e) => setTreeScale(Number(e.target.value) / 100)} />
+        <span>{Math.round(treeScale * 100)}%</span>
+      </div>
+      <div className="treeViewport">
+        <div className="treeWrap" style={{ transform: `scale(${treeScale})` }}>
+          {rootPerson ? (
+            <FamilyBranch
+              person={rootPerson}
+              family={family}
+              activePersonId={activePerson.id}
+              selectedPersonId={selectedPerson?.id}
+              onSelectPerson={onSelectPerson}
+            />
+          ) : null}
+        </div>
       </div>
       
       {selectedPerson ? (
@@ -88,13 +126,13 @@ export function FamilyTree({ family, activePerson, selectedPerson, onSelectPerso
             {selectedPerson.avatar} {selectedPerson.name}
           </div>
           <div className="memberGrid">
-            <span>Happiness: {selectedPerson.stats.happiness}</span>
-            <span>Love: {selectedPerson.stats.love}</span>
-            <span>Charm: {selectedPerson.stats.charm}</span>
-            <span>IQ: {selectedPerson.stats.iq}</span>
             <span>Job: {selectedPerson.job.title}</span>
             <span>Salary/s: {selectedPerson.job.salaryPerSecond}</span>
             <span>Pension/s: {selectedPerson.pensionPerSecond ?? 0}</span>
+            <span>Level: {selectedPerson.job.level ?? 0}</span>
+          </div>
+          <div className="memberStatusGrid">
+            {selectedStats?.map(([label, value]) => <StatusBar key={label} label={label} value={value} />)}
           </div>
           <div className="sub">Traits: {selectedPerson.traits.join(', ')}</div>
         </div>
